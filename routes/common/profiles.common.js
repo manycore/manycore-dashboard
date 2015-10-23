@@ -7,7 +7,7 @@ var fs = require('fs');
 /************************************************/
 /* Constants									*/
 /************************************************/
-var VERSION = 58;
+var VERSION = 66;
 
 /************************************************/
 /* Variables - hardwares						*/
@@ -29,14 +29,18 @@ var hardRoman = {
 		ram:	'12 279 MB'
 	},
 	data: {
-		cores:		4,			// #cores
-		threads: 	8,			// #theads (hyperthreading)
-		type:		64,			// 32 or 64 bits
-		clock:		3.06,		// in GHz
-		l1:			32,			// in KB
-		l2:			256,		// in KB
-		l3:			8192,		// in KB
-		ram:		12573696	// in KB
+		cores:		4,			// TO REMOVE #cores
+		threads:	8,			// TO REMOVE #theads (hyperthreading)
+		type:		64,			// TO REMOVE 32 or 64 bits
+
+		arch:		'x86-64',	// architecture 32 or 64 bits
+		pcores:		4,			// number of physical cores
+		lcores:		8,			// number of logical cores
+		clock:		3.06,		// clock speed in GHz
+		l1:			32,			// cache L1 in KB
+		l2:			256,		// cache L2 in KB
+		l3:			8192,		// cache L3 in KB
+		ram:		12573696	// cache RAM in KB
 	},
 	calibration: {
 		s:	1,				// number of switches by ms by core
@@ -73,7 +77,8 @@ var profileMap = {
 		{ id: 19,	label: 'Word',			desc: 'Microsoft Word sample',		hardware: hardRoman, file: 'word',			pid: 2852,	timeStep: 50, v: 3 },
 		{ id: 20,	label: 'Excel',			desc: 'Microsoft Excel sample',		hardware: hardRoman, file: 'excel',			pid: 5176,	timeStep: 50, v: 3, disabled: true },
 
-		{ id: 21,	label: 'Dining ph. 45',	desc: 'Dining philosophers problem 45',		hardware: hardRoman, file: 'philosophers45',	pid: 4168,	timeStep: 50, v: 4 },
+		{ id: 21,	label: 'Dining ph. 5',	desc: 'Probliem for 5 philosophers dining',		hardware: hardRoman, file: 'philosophers5',		pid: 12220,	timeStep: 50, v: 4 },
+		{ id: 22,	label: 'Dining ph. 45',	desc: 'Probliem for 45 philosophers dining',	hardware: hardRoman, file: 'philosophers45',	pid: 6908,	timeStep: 50, v: 4 },
 
 		{ id: 31,	label: 'P/C 1/1',		desc: '1 producer and 1 consumer',			hardware: hardRoman, file: 'pc1x1',		pid: 67380,	timeStep: 50, v: 4 },
 		{ id: 32,	label: 'P/C 1/10',		desc: '1 producer and 10 consumers',		hardware: hardRoman, file: 'pc1x10',	pid: 73540,	timeStep: 50, v: 4 },
@@ -99,7 +104,7 @@ profileMap.all.forEach(function (profile) { profileMap[profile.id] = profile; })
 	 ├	profile<0>						<profile>
 	 ├	...
 	 └	profile<N>						<profile>
-	 
+
 	 profile
 	 ├	version						<integer>	version of the cache
 	 ├	frames
@@ -152,21 +157,6 @@ profileMap.all.forEach(function (profile) { profileMap[profile.id] = profile; })
 	 │	 	 │	 └	lw				[]			array of lock waiting periods (real, not corresponding to a time frame), in the increasing time order
 	 │	 	 ├	...
 	 │	 	 └	<?>
-	 │
-	 ├	lifecycles					[]			array of thread lifecycle events
-	 │	 ├	<thread0>
-	 │	 │	 ├	s					<integer>	start time (real, not corresponding to a time frame), could be null
-	 │	 │	 ├	m					[]			array of migration /!\ unique /!\ (real) times (only one migration appears for 1 ms, so some migrations are missing)
-	 │	 │	 └	e					<char>		start time (real, not corresponding to a time frame), could be null
-	 │	 ├	...
-	 │	 └	<threadN>
-	 ├	lifetimes					[]			array of thread lifecycle events
-	 │	 ├	0
-	 │	 │	 ├	t					<integer>	time (real, not corresponding to a time frame)
-	 │	 │	 ├	h					ID			thread ID
-	 │	 │	 └	e					<char>		's' for start, 'e' for end
-	 │	 ├	...
-	 │	 └	<?>
 	 ├	migrations					[]			array of migration events, in the increasing time order
 	 │	 ├	0
 	 │	 │	 ├	t					<integer>	time (real, not corresponding to a time frame)
@@ -181,18 +171,23 @@ profileMap.all.forEach(function (profile) { profileMap[profile.id] = profile; })
 	 │	 ├	...
 	 │	 └	<?>
 	 ├	threads
-	 │	 └	byFrames
-	 │		 ├	frame<0>			ID
-	 │		 │	 ├	thread<0>		ID
-	 │		 │	 │	 ├	cycles		<integer>	number of cycles
-	 │		 │	 │	 ├	ready		<integer>	duration of ready state
-	 │		 │	 │	 ├	running		<integer>	duration of running state
-	 │		 │	 │	 ├	standby		<integer>	duration of standby state
-	 │		 │	 │	 └	wait		<integer>	duration of wait state
-	 │		 │	 ├	...
-	 │		 │	 └	thread<N>
-	 │		 ├	...
-	 │		 └	frame<?>
+	 │	 ├	byFrames
+	 │	 │	 ├	frame<0>			ID
+	 │	 │	 │	 ├	thread<0>		ID
+	 │	 │	 │	 │	 ├	cycles		<integer>	number of cycles
+	 │	 │	 │	 │	 ├	ready		<integer>	duration of ready state
+	 │	 │	 │	 │	 ├	running		<integer>	duration of running state
+	 │	 │	 │	 │	 ├	standby		<integer>	duration of standby state
+	 │	 │	 │	 │	 └	wait		<integer>	duration of wait state
+	 │	 │	 │	 ├	...
+	 │	 │	 │	 └	thread<N>
+	 │	 │	 ├	...
+	 │	 │	 └	frame<?>
+	 │	 └	list
+	 │		 └	<h>
+	 │			 ├	s					<integer>	start time (real, not corresponding to a time frame), could be null
+	 │			 ├	e					<integer>	end time (real, not corresponding to a time frame), could be null
+	 │			 └	ct					<integer>	core time in ms
 	 └	stats
 		 └	switch					<integer>	number of switches for all cores during all run
 **/
@@ -210,7 +205,7 @@ function getVersion(profile) {
 		v = JSON.parse(fs.readFileSync('data/' + profile.file + '.cache.json', 'utf8')).info.version;
 
 	} catch (e) { }
-	
+
 	console.log("[" + profile.id + "] cache revision: " + v);
 	return v;
 }
@@ -278,7 +273,7 @@ function reloadCache(profile) {
 	// Save to cache
 	fs.writeFileSync(filenameCache, JSON.stringify(data));
 	console.log("[" + profile.id + "] " + profile.file + " raw data cached");
-	
+
 	return data;
 }
 
@@ -291,8 +286,8 @@ function computeData(profile, raw1, raw2, raw3, raw4) {
 	var data = {
 		info: {
 			version:		VERSION,
-			cores:			profile.hardware.data.cores,
-			threads:		profile.hardware.data.threads,
+			cores:			profile.hardware.data.cores,	// TO REPLACE with lcores
+			threads:		profile.hardware.data.threads,	// TO REPLACE with app's #threads
 			timeStep:		profile.timeStep,
 			timeMin:		0,
 			timeMax:		0
@@ -303,14 +298,17 @@ function computeData(profile, raw1, raw2, raw3, raw4) {
 			migrations:		0,
 			starts:			0,
 			ends:			0,
-			lock_success:	0,
 			lock_failure:	0,
+			lock_success:	0,
+			lock_release:	0,
 			lock_wait:		0,
+			lock_hold:		0,
 			threads:		0
 		},
 		frames: {},
 		events: {
 			threads:		{},
+			sequences:		{},
 			s:				[],
 			m:				[]
 		},
@@ -320,8 +318,6 @@ function computeData(profile, raw1, raw2, raw3, raw4) {
 		},
 		switches: [],
 		migrations: [],
-		lifetimes: [],
-		lifecycle: {},
 		locality: {
 			byFrames: {},
 			stats: {
@@ -333,10 +329,13 @@ function computeData(profile, raw1, raw2, raw3, raw4) {
 				hpf:		0
 			}
 		},
-		lock_success:		[],
+		locks:				{},
 		lock_failure:		[],
+		lock_success:		[],
+		lock_release:		[],
 		threads: {
-			byFrames:		{}
+			byFrames:		{},
+			list:			{}
 		}
 	};
 
@@ -344,6 +343,11 @@ function computeData(profile, raw1, raw2, raw3, raw4) {
 	var timeID, timeEvent;
 
 	// Global functions
+	function checkThread(id) {
+		if (! data.threads.list.hasOwnProperty(id))
+			data.threads.list[id] = { s: null, e: null, ct: 0};
+		return data.threads.list[id];
+	}
 	function checkFrame(id) {
 		if (! data.frames.hasOwnProperty(id)) {
 			data.frames[id] = {
@@ -351,7 +355,7 @@ function computeData(profile, raw1, raw2, raw3, raw4) {
 				c:				{},	// by code
 
 				cycles: 		0,	// in cycles
-				
+
 				idle:			0,	// in ms, idle process
 				ready: 			0,	// in ms
 				running: 		0,	// in ms
@@ -426,6 +430,11 @@ function computeData(profile, raw1, raw2, raw3, raw4) {
 
 				// Save state
 				data.frames[timeEvent].t[element.tid][element.type] += element.value;
+
+				// Compute core time
+				if (element.type == 'running') {
+					checkThread(element.tid).ct += element.value;
+				}
 			}
 
 			// By core
@@ -438,7 +447,7 @@ function computeData(profile, raw1, raw2, raw3, raw4) {
 				data.frames[timeEvent].c[element.cid][element.type] += element.value;
 			}
 		}
-		
+
 		// IDLE
 		else if (element.pid == 1 && element.type == 'running') {
 
@@ -454,7 +463,7 @@ function computeData(profile, raw1, raw2, raw3, raw4) {
 
 			// Sum by stat (with auto build structure)
 			data.stats.idle += element.value;
-			
+
 		}
 	});
 
@@ -473,6 +482,12 @@ function computeData(profile, raw1, raw2, raw3, raw4) {
 	 *		switches
 	 *
 	 */
+	// Sequential sequences
+	var coreLength = profile.hardware.data.threads;
+	var coreActivity = [];
+	var currentActivity;
+	for (var cid = 0; cid < coreLength; cid++) coreActivity[cid] = true;
+
 	// Vars
 	var coreThreads = {};
 	var migrationMap = {};
@@ -486,6 +501,21 @@ function computeData(profile, raw1, raw2, raw3, raw4) {
 
 		// Check time frame existance
 		checkFrame(timeID);
+
+		// Sequential or parallel sequences
+		if (element.type == "sw") {
+			currentActivity = element.pid == profile.pid;
+			if (currentActivity != coreActivity[element.cid]) {
+				coreActivity[element.cid] = currentActivity;
+
+				// Save new state (override with new states if already exists)
+				data.events.sequences[timeEvent] = { c_r: 0 };
+				for (var cid = 0; cid < coreLength; cid++) {
+					if (coreActivity[cid])
+						data.events.sequences[timeEvent].c_r++;
+				}
+			}
+		}
 
 		// Switch
 		if (element.type == "sw" && element.pid == profile.pid) {
@@ -524,26 +554,19 @@ function computeData(profile, raw1, raw2, raw3, raw4) {
 
 				// Save migration time
 				data.events.m.push(timeEvent);
-			
+
 				// Check event list existance
 				if (! data.events.threads.hasOwnProperty(element.tid))
 					data.events.threads[element.tid] = { m: [] };
 				else if (! data.events.threads[element.tid].hasOwnProperty('m'))
 					data.events.threads[element.tid].m = [];
-				
+
 				// Save the migration
 				data.events.threads[element.tid].m.push(timeEvent);
-				
+
 				// Save the migration core attachement
 				if (! migrationMap.hasOwnProperty(element.tid)) migrationMap[element.tid] = {};
 				migrationMap[element.tid][timeEvent] = element.cid;
-
-				// TO DELETE - Save lifecycle
-				if (! data.lifecycle.hasOwnProperty(element.tid)) data.lifecycle[element.tid] = { s: null, e: null, m: []};
-				if (data.lifecycle[element.tid].m[data.lifecycle[element.tid].m.length - 1] != timeEvent) {
-					data.lifecycle[element.tid].m.push(timeEvent);
-					data.lifecycle[element.tid].m.sort(function(a, b){return a - b});
-				}
 
 				// Save new attached core
 				coreThreads[element.tid] = element.cid;
@@ -551,7 +574,7 @@ function computeData(profile, raw1, raw2, raw3, raw4) {
 
 		}
 
-		// Lifecycle
+		// Thread life
 		else if ((element.type == "start" || element.type == "end") && element.pid == profile.pid) {
 
 			// Which case ?
@@ -563,18 +586,10 @@ function computeData(profile, raw1, raw2, raw3, raw4) {
 			// Add a start with auto build structure
 			data.frames[timeID][property]++;
 
-			// Save start
-			data.lifetimes.push({
-				t: timeEvent,
-				h: element.tid,
-				e: element.type[0]
-			});
-
-			// Save lifecycle
-			if (! data.lifecycle.hasOwnProperty(element.tid)) data.lifecycle[element.tid] = { s: null, e: null, m: []};
-			data.lifecycle[element.tid][element.type[0]] = timeEvent;
+			// Save thread property
+			checkThread(element.tid)[element.type[0]] = timeEvent;
 		}
-		
+
 	});
 
 	// Sorts arrays
@@ -582,7 +597,7 @@ function computeData(profile, raw1, raw2, raw3, raw4) {
 	data.migrations.sort(function(a, b){return a.t - b.t});
 	data.events.s.sort(function(a, b){return a - b});
 	data.events.m.sort(function(a, b){return a - b});
-	
+
 	// Build migration periods
 	Object.keys(migrationMap).forEach(function(h) {
 		// Check event list existance
@@ -590,7 +605,7 @@ function computeData(profile, raw1, raw2, raw3, raw4) {
 			data.periods.threads[h] = { m: [] };
 		else if (! data.periods.threads[h].hasOwnProperty('m'))
 			data.periods.threads[h].m = [];
-		
+
 		Object.keys(migrationMap[h]).forEach(function(t) {
 			if (data.periods.threads[h].m.length == 0) {
 				data.periods.threads[h].m.push({ s: +t, c: migrationMap[h][t], e: null });
@@ -610,11 +625,25 @@ function computeData(profile, raw1, raw2, raw3, raw4) {
 	 */
 	// Var
 	var property;
-	var stat_ipc = 0;
+	var steps = +raw3.info.duration / data.info.timeStep;
+
+	// Init stats
+	data.locality.stats = {
+		ipc:	0,
+		tlb:	0,
+		l1:		0,
+		l2:		0,
+		l3:		0,
+		hpf:	0
+	}
 
 	// Loop
 	raw3.threads.forEach(function(thread) {
-		thread.measures.forEach(function(measure) {
+		if (thread.id > 1) thread.measures.forEach(function(measure) {
+			// Save average
+			checkThread(thread.id)[measure.name.toLowerCase()] = measure.data.reduce(function(a, b) { return a + b; }) / measure.data.length;
+
+			// Save by time frame
 			measure.data.forEach(function (value, value_index) {
 				timeID = value_index * profile.timeStep;
 				property = measure.name.toLowerCase();
@@ -625,20 +654,24 @@ function computeData(profile, raw1, raw2, raw3, raw4) {
 				data.locality.byFrames[timeID][property] += +value || 0;
 
 				// Stats
-				data.locality.stats[property] += +value || 0;
+				data.locality.stats[property] += (+value || 0) * data.info.timeStep / 100; //  / steps
 			});
 		});
 	});
 
-	// Stats
-	data.stats.cycles = +raw3.info.cycles;
-	data.stats.l1miss = +raw3.info.l1miss;
-	data.stats.l2miss = +raw3.info.l2miss;
-	data.stats.l3miss = +raw3.info.l3miss;
-	data.stats.tlbmiss = +raw3.info.tlbmiss;
-	data.stats.dzf = +raw3.info.dzf;
-	data.stats.hpf = +raw3.info.hpf;
-
+	// Stats -- UNUSED
+	/*
+	data.rawLocality.stats = {
+		d:		+raw3.info.duration,
+		cycles:	+raw3.info.cycles,
+		tlb:	+raw3.info.tlbmiss,
+		l1:		+raw3.info.l1miss,
+		l2:		+raw3.info.l2miss,
+		l3:		+raw3.info.l3miss,
+		dzf:	+raw3.info.dzf,
+		hpf:	+raw3.info.hpf
+	}
+	*/
 
 
 	/**
@@ -648,8 +681,9 @@ function computeData(profile, raw1, raw2, raw3, raw4) {
 	 *
 	 */
 	// Vars
-	var lock_map = {};	// current owner of a lock
-	var wait_map = {};	// when a thread starts waiting a lock (key: 'thread-lock')
+	var lock_map = {};	// current owner of a lock				(key: 'lock-id')
+	var hold_map = {};	// when a thread starts holding a lock	(key: 'lock-id')
+	var wait_map = {};	// when a thread starts waiting a lock	(key: 'thread-lock')
 	var duration, currentEnd, currentID;
 
 	// Loop
@@ -675,15 +709,23 @@ function computeData(profile, raw1, raw2, raw3, raw4) {
 				l: element.value,											// which lock
 				d: duration													// how long does it take to get the lock
 			});
-			
+
 			// Check event list existance
 			if (! data.events.threads.hasOwnProperty(element.tid))
 				data.events.threads[element.tid] = { ls: [] };
 			else if (! data.events.threads[element.tid].hasOwnProperty('ls'))
 				data.events.threads[element.tid].ls = [];
-			
+
 			// Save the success
 			data.events.threads[element.tid].ls.push(timeEvent);
+
+			// Save when lock is holding
+			if (hold_map[element.value] != null && hold_map[element.value] != element.dtime) console.log("incoherent: lock already holded", element.value, hold_map[element.value], element.dtime);
+			hold_map[element.value] = element.dtime;
+
+			// Save lock life
+			if (! data.locks.hasOwnProperty(element.value)) data.locks[element.value] = [];
+			data.locks[element.value].push({ t: timeEvent, x: 'ls', h: element.tid });
 
 			// Stats
 			data.stats.lock_success++;
@@ -702,7 +744,7 @@ function computeData(profile, raw1, raw2, raw3, raw4) {
 					data.periods.threads[element.tid] = { lw: [] };
 				else if (! data.periods.threads[element.tid].hasOwnProperty('lw'))
 					data.periods.threads[element.tid].lw = [];
-				
+
 				// Save the success
 				data.periods.threads[element.tid].lw.push({ s: Math.round(wait_map[element.tid] / 10000), e: timeEvent});
 
@@ -723,7 +765,7 @@ function computeData(profile, raw1, raw2, raw3, raw4) {
 			wait_map[element.tid] = undefined;			// Thread doesn't wait the lock anymore
 			lock_map[element.value] = element.tid;		// which thread has the lock
 
-		} else { // if (element.type == 'failure')
+		} else if (element.type == 'failure') {
 
 			// Save the failure
 			data.lock_failure.push({
@@ -732,13 +774,13 @@ function computeData(profile, raw1, raw2, raw3, raw4) {
 				h: element.tid,					// which thread fails
 				hl: lock_map[element.value]		// which thread owns the lock
 			});
-			
+
 			// Check event list existance
 			if (! data.events.threads.hasOwnProperty(element.tid))
 				data.events.threads[element.tid] = { lf: [] };
 			else if (! data.events.threads[element.tid].hasOwnProperty('lf'))
 				data.events.threads[element.tid].lf = [];
-			
+
 			// Save the failure
 			data.events.threads[element.tid].lf.push(timeEvent);
 
@@ -746,11 +788,49 @@ function computeData(profile, raw1, raw2, raw3, raw4) {
 			if (wait_map[element.tid] != null && wait_map[element.tid] != element.dtime) console.log("incoherent: thread already waiting", wait_map[element.tid], element.dtime);
 			wait_map[element.tid] = element.dtime;
 
+			// Save lock life
+			if (! data.locks.hasOwnProperty(element.value)) data.locks[element.value] = [];
+			data.locks[element.value].push({ t: timeEvent, x: 'lf', h: element.tid, hl: lock_map[element.value] });
+
 			// Stats
 			data.stats.lock_failure++;
 
 			// Stats by frame
 			data.frames[timeID].lock_failure++;
+
+		} else if (element.type == 'release') {
+			// Compute duration
+			duration = Math.round((element.dtime - hold_map[element.value]) / 10000);
+
+			// Save the release
+			data.lock_release.push({
+				t: timeEvent,
+				l: element.value,				// which occupied lock
+				h: element.tid,					// which thread fails
+				d: duration						// how long does it take to get the lock
+			});
+
+			// Check event list existance
+			if (! data.periods.threads.hasOwnProperty(element.tid))
+				data.periods.threads[element.tid] = { lh: [] };
+			else if (! data.periods.threads[element.tid].hasOwnProperty('lh'))
+				data.periods.threads[element.tid].lh = [];
+
+			// Save the success
+			data.periods.threads[element.tid].lh.push({ s: Math.round(hold_map[element.value] / 10000), e: timeEvent});
+			hold_map[element.value] = null;
+
+			// Save lock life
+			if (! data.locks.hasOwnProperty(element.value)) data.locks[element.value] = [];
+			data.locks[element.value].push({ t: timeEvent, x: 'lr' });
+
+			// Stats
+			data.stats.lock_release++;
+			data.stats.lock_hold += duration;
+
+			// Reset
+			hold_map[element.value] = undefined;		// Lock isn't holded anymore (when start holding)
+			lock_map[element.value] = undefined;		// Lock isn't holded anymore (which thread)
 		}
 	});
 
@@ -781,11 +861,11 @@ function exportInfo(output, profile) {
 
 	// Infos
 	output.info = {
-		cores:			data.info.cores,
-		threads:		data.info.threads,
-		timeStep:		data.info.timeStep,
+		cores:			data.info.cores,	// TO REPLACE with lcores
+		threads:		data.info.threads,	// TO REPLACE with app's #threads
 		timeMin:		data.info.timeMin,
 		timeMax:		data.info.timeMax,
+		timeStep:		data.info.timeStep,
 		duration:		data.info.timeMax + data.info.timeStep
 	};
 }

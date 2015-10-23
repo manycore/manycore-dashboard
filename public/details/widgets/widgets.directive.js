@@ -57,7 +57,7 @@ var graphLayout = function(favoriteHeight) {
 /**
  * Meta (parameters)
  */
-var graphMeta = function(scope, attributes, mirror, canOverflow, properties) {
+var graphMeta = function(scope, attributes, mirror, canOverflow, params, properties) {
 	// Allow seld reference (otherwise this is the caller object)
 	var self = this;
 
@@ -84,7 +84,13 @@ var graphMeta = function(scope, attributes, mirror, canOverflow, properties) {
 	this.vStep =		[NaN, NaN];		// what is the step to display the ticks on the axis ?
 	this.vOverflow =	[NaN, NaN];		// Possible overflow by first and second profile
 
-	// On demand
+	// On demand - params
+	if (params)
+		params.forEach(function(p) {
+			try { self[p.property] = JSON.parse(p.value) } catch(e) { self[p.property] = p.value };
+		});
+	
+	// On demand - settings
 	properties.forEach(function(a) {
 		if (attributes.hasOwnProperty(a))
 			try { self[a] = JSON.parse(attributes[a]) } catch(e) { self[a] = attributes[a] };
@@ -131,7 +137,7 @@ function directive_init(scope, element, attrs, layoutType, mirror, canOverflow) 
 
 	// Attributes
 	var deck =		scope.widget.deck.graph;
-	var meta =		new graphMeta(scope, attrs, mirror, canOverflow, properties);
+	var meta =		new graphMeta(scope, attrs, mirror, canOverflow, scope.widget.deck.params, properties);
 
 	// Data
 	var profiles =	scope.profiles;
@@ -193,12 +199,12 @@ function directive_repaint_container(r) {
 	r.svg.attr({width: r.layout.width, height: r.layout.height});
 
 	// Clean axis
-	r.groupV[0].attr("transform", "translate(" + r.layout.vAxis.x + "," + r.layout.vAxis.y[0] + ")");
-	r.groupV[1].attr("transform", "translate(" + r.layout.vAxis.x + "," + r.layout.vAxis.y[1] + ")");
+	r.groupV[0].attr('transform', 'translate(' + r.layout.vAxis.x + ',' + r.layout.vAxis.y[0] + ')');
+	r.groupV[1].attr('transform', 'translate(' + r.layout.vAxis.x + ',' + r.layout.vAxis.y[1] + ')');
 
 	// Clean groups
-	r.groupP[0].attr("transform", "translate(" + r.layout.profile.x + "," + r.layout.profile.y[0] + ")");
-	r.groupP[1].attr("transform", "translate(" + r.layout.profile.x + "," + r.layout.profile.y[1] + ")");
+	r.groupP[0].attr('transform', 'translate(' + r.layout.profile.x + ',' + r.layout.profile.y[0] + ')');
+	r.groupP[1].attr('transform', 'translate(' + r.layout.profile.x + ',' + r.layout.profile.y[1] + ')');
 
 	// Clean selection
 	directive_unselect(r);
@@ -206,7 +212,7 @@ function directive_repaint_container(r) {
 	// Overflow
 	if (r.meta.canOverflow) {
 		r.meta.vOverflow = [0, 0];
-		r.groupO.attr("transform", null);
+		r.groupO.attr('transform', null);
 	}
 }
 
@@ -231,13 +237,13 @@ function directive_repaint_scales(r, vData, vData2) {
 function directive_repaint_post(r) {
 	// Profile label
 	r.profiles.forEach(function(profile, index) {
-		r.groupV[index].append("text")
+		r.groupV[index].append('text')
 			.attr('class', "svg-text svg-profile-label")
-			.attr("text-anchor", (index == 0) ? "start" : "end")
-			.attr("font-size", r.layout.vAxis.profileFontSize + "px")
-			.attr("font-weight", "bold")
+			.attr('text-anchor', (index == 0) ? "start" : 'end')
+			.attr('font-size', r.layout.vAxis.profileFontSize + 'px')
+			.attr('font-weight', 'bold')
 			.attr('fill', '#000000')
-			.attr("transform", (index == 0) ? ("translate(" + r.layout.vAxis.profileFontSize + "," + (r.layout.vAxis.height) + ")rotate(270)") : ("translate(" + r.layout.vAxis.profileFontSize + "," + 0 + ")rotate(270)"))
+			.attr('transform', (index == 0) ? ('translate(' + r.layout.vAxis.profileFontSize + ',' + (r.layout.vAxis.height) + ")rotate(270)") : ('translate(' + r.layout.vAxis.profileFontSize + ',' + 0 + ")rotate(270)"))
 			.text(profile.label);
 	});
 		
@@ -246,12 +252,12 @@ function directive_repaint_post(r) {
 
 		// Top (profile 1)
 		if (r.meta.vOverflow[0] > 0) {
-			r.groupO.attr("transform", "translate(0," + r.meta.vOverflow[0] + ")");
+			r.groupO.attr('transform', "translate(0," + r.meta.vOverflow[0] + ')');
 		}
 
 		// Top (profile 2)
 		if (r.meta.vOverflow[1] > 0 && ! r.meta.mirror) {
-			r.group1.attr("transform", "translate(0," + r.meta.vOverflow[1] + ")");
+			r.group1.attr('transform', "translate(0," + r.meta.vOverflow[1] + ')');
 		}
 
 		// Top & Bottom (both profiles)
@@ -264,7 +270,10 @@ function directive_repaint_post(r) {
  * Repaint - Bind
  */
 function directive_bind(scope, element, r, repaint, select) {
+	// Size
 	scope.$watch(function() { return r.container.clientWidth; }, repaint);
+	
+	// Properties
 	scope.$watch(function() { return r.settings.version; }, function() {
 		var needToRepaint = false;
 
@@ -278,6 +287,14 @@ function directive_bind(scope, element, r, repaint, select) {
 		if (needToRepaint)
 			repaint();
 	});
+
+	// Selection TO controller
+	// Mouse events are redirected to the controller for a global handling
+	element.on('mousemove', function(event) { scope.mouseOver(event, r); });
+	element.on('mouseleave', function(event) { scope.mouseLeave(event, r); });
+	
+	// Selection FROM controller
+	// Controller treated and sent selection position
 	scope.$on('xEvent', function(event, x) {
 		if (isNaN(x)) {
 			directive_unselect(r);
@@ -285,9 +302,6 @@ function directive_bind(scope, element, r, repaint, select) {
 			select(x);
 		}
 	});
-
-	element.on('mousemove', function(event) { scope.mouseOver(event, r); });
-	element.on('mouseleave', function(event) { scope.mouseLeave(event, r); });
 }
 
 /**
@@ -296,7 +310,7 @@ function directive_bind(scope, element, r, repaint, select) {
 function directive_repaint_xAxis(r) {
 	// Clean
 	r.groupX
-		.attr("transform", "translate(" + r.layout.xAxis.x + "," + r.layout.xAxis.y + ")")
+		.attr('transform', 'translate(' + r.layout.xAxis.x + ',' + r.layout.xAxis.y + ')')
 		.selectAll('*').remove();
 
 	// Box
@@ -314,13 +328,13 @@ function directive_repaint_xAxis(r) {
 		.attr("stroke-width", 2);
 	
 	// Clock symbol
-	r.groupX.append("text")
-		.attr('class', "svg-text")
-		.attr("y", r.layout.xAxis.textShift + 2)
-		.attr("x", -16)
-		.attr("text-anchor", "end")
-		.attr("font-size", (r.layout.xAxis.text + 4) + "px")
-		.text('🕓'); // ⌛
+	r.groupX.append('text')
+		.attr('class', 'svg-text')
+		.attr('y', r.layout.xAxis.textShift + 2)
+		.attr('x', -16)
+		.attr('text-anchor', 'end')
+		.attr('font-size', (r.layout.xAxis.text + 4) + 'px')
+		.text('time'); // ⌛ 🕓
 	
 	// Labels
 	var texts = r.scaleX.ticks();
@@ -328,12 +342,12 @@ function directive_repaint_xAxis(r) {
 	r.groupX
 		.selectAll(".svg-text-scale")
 		.data(texts).enter()
-		.append("text")
-			.attr('class', "svg-text")
-			.attr("y", r.layout.xAxis.textShift)
-			.attr("x", function (d) { return r.scaleX(d)})
-			.attr("text-anchor", function(d, i) { return (i == lastIndex) ? "end" : "middle"; })
-			.attr("font-size", r.layout.xAxis.text + "px")
+		.append('text')
+			.attr('class', 'svg-text')
+			.attr('y', r.layout.xAxis.textShift)
+			.attr('x', function (d) { return r.scaleX(d)})
+			.attr('text-anchor', function(d, i) { return (i == lastIndex) ? 'end' : "middle"; })
+			.attr('font-size', r.layout.xAxis.text + 'px')
 			.attr('fill', "#FFFFFF")
 			.text(function (d) { return (d == 0) ? 0 : (d / 1000) + ' s'; });
 }
@@ -364,13 +378,13 @@ function directive_repaint_VAxis(r, index, valueFunction) {
 				.attr('fill', 'none');
 
 		// Text
-		r.groupV[index].append("text")
-			.attr('class', "svg-text")
-			.attr("y", r.scalesV[index](v) + 3)
-			.attr("x", r.layout.vAxis.width - 6)
-			.attr("text-anchor", "end")
-			.attr("font-size", r.layout.vAxis.fontSize + "px")
-			.attr("font-weight", (v == r.meta.vExpected[index]) ? 'bold' : 'normal')
+		r.groupV[index].append('text')
+			.attr('class', 'svg-text')
+			.attr('y', r.scalesV[index](v) + 3)
+			.attr('x', r.layout.vAxis.width - 6)
+			.attr('text-anchor', 'end')
+			.attr('font-size', r.layout.vAxis.fontSize + 'px')
+			.attr('font-weight', (v == r.meta.vExpected[index]) ? 'bold' : 'normal')
 			.attr('fill', (v == r.meta.vExpected[index]) ? r.deck.limit.fcolor : '#000000')
 			.text((valueFunction !== undefined) ? valueFunction(v, index, r) : v);
 
@@ -434,15 +448,15 @@ function directive_repaint_VCustomAxis(r, index, facet, values) {
 				.attr('stroke-width', 1);
 
 		// Text
-		r.groupV[index].append("text")
-			.attr('class', "svg-text")
-			.attr("y", value.y)
-			.attr("x", r.layout.vAxis.width - 6)
-			.attr("text-anchor", "end")
-			.attr("alignment-baseline", 'central')
-			.attr("dominant-baseline", 'central')
-			.attr("font-size", r.layout.vAxis.fontSize + "px")
-			.attr("font-weight", 'normal')
+		r.groupV[index].append('text')
+			.attr('class', 'svg-text')
+			.attr('y', value.y)
+			.attr('x', r.layout.vAxis.width - 6)
+			.attr('text-anchor', 'end')
+			.attr('alignment-baseline', 'central')
+			.attr('dominant-baseline', 'central')
+			.attr('font-size', r.layout.vAxis.fontSize + 'px')
+			.attr('font-weight', 'normal')
 			.attr('fill', facet.fcolor)
 			.text(value.l);
 	});
@@ -481,12 +495,12 @@ function p2s(points, returnPoints) {
 	var result = "";
 
 	for (var i = points.length - 2; i >= 0; i -= 2) {
-		result = points[i] + "," + points[i+1] + " " + result;
+		result = points[i] + ',' + points[i+1] + " " + result;
 	};
 
 	if (returnPoints != undefined) {
 		for (var i = returnPoints.length - 2; i >= 0; i -= 2) {
-			result += returnPoints[i] + "," + returnPoints[i+1] + " ";
+			result += returnPoints[i] + ',' + returnPoints[i+1] + " ";
 		};
 	}
 
@@ -1374,7 +1388,7 @@ app.directive('chartLines', function() {
 		var r = directive_init(scope, element, attrs, LAYOUT_FH_NULL, true, true);
 
 		// Enhance meta
-		r.meta.lineHeight = 12; // scope.widget.deck.settings[0].max
+		if (! r.meta.lineHeight) r.meta.lineHeight = 12;
 
 		// Redraw
 		var lines, mapLines;
@@ -1390,19 +1404,68 @@ app.directive('chartLines', function() {
 
 			// Main draw
 			var profileData, melodyData;
-			var groupHeight, lineY;
+			var groupHeight, lineLenght, lineY;
+			var delta;
 			r.profiles.forEach(function(profile, index) {
 				// Clean
 				r.groupP[index].selectAll('*').remove();
 
 				// Data
-				lines = r.deck.lines(profile, r.meta.begin, r.meta.ends[index]);
+				lines = (r.meta.hackLineProvider) ? r.deck.linesHack(profile, r.meta.begin, r.meta.ends[index]) : r.deck.lines(profile, r.meta.begin, r.meta.ends[index]);
+				lineLenght = lines.length;
 				mapLines = {};
 				profileData = profile.currentData;
-				groupHeight = lines.length * r.meta.lineHeight;
+				groupHeight = lineLenght * r.meta.lineHeight;
 				
 				// Expand graph
 				r.meta.vOverflow[index] = groupHeight;
+				
+				// Draw sequences
+				if (r.deck.sequences && ! r.meta.disableSequenceBackgound) {
+					var seqData = profileData.events.q;
+					var currentY;
+					var yMax = (index == 0) ? - groupHeight : groupHeight;
+					var yMin = 0;
+					var cPreviousY = yMin;
+					var uPreviousY = yMax;
+					var cPoints = [r.scaleX(r.meta.begin), cPreviousY];
+					var uPoints = [r.scaleX(r.meta.begin), uPreviousY];
+					
+					for (var t in seqData) {
+						if (t > r.meta.begin) {
+							// Position
+							// currentY = (index == 0) ? - seqData[t] * r.meta.lineHeight : seqData[t] * r.meta.lineHeight;
+							currentY = (seqData[t] <= r.meta.sequenceThreshold) ? yMin : yMax;
+							
+							// Under
+							if (uPreviousY != currentY) {
+								uPoints.push.apply(uPoints, [r.scaleX(t), uPreviousY, r.scaleX(t), currentY]);
+								uPreviousY = currentY;
+							}
+							
+							// Count
+							if (cPreviousY != currentY) {
+								cPoints.push.apply(cPoints, [r.scaleX(t), cPreviousY, r.scaleX(t), currentY]);
+								cPreviousY = currentY;
+							}
+						}
+					}
+					
+					cPoints.push.apply(cPoints, [r.scaleX(r.meta.ends[index]), cPreviousY, r.scaleX(r.meta.ends[index]), yMin]);
+					uPoints.push.apply(uPoints, [r.scaleX(r.meta.ends[index]), uPreviousY, r.scaleX(r.meta.ends[index]), yMax]);
+					
+					// Under
+					r.groupP[index].append("polygon")
+						.attr('class', 'svg-data svg-data-sequence svg-data-under')
+						.attr("points", p2s(uPoints))
+						.attr('fill', r.deck.sequences.under.gcolor);
+					
+					// Count
+					r.groupP[index].append("polygon")
+						.attr('class', 'svg-data svg-data-sequence svg-data-count')
+						.attr("points", p2s(cPoints))
+						.attr('fill', r.deck.sequences.count.gcolor);
+				}
 				
 				// Draw lines
 				lines.forEach(function(line, line_index) {
@@ -1414,18 +1477,18 @@ app.directive('chartLines', function() {
 					line.y = lineY;
 					
 					// Draw basic core
-					r.groupP[index].append('line')
-						.attr('class', "svg-data svg-data-line")
-						.attr('x1', r.scaleX(line.s))
-						.attr('x2', r.scaleX(line.e))
-						.attr('y1', lineY).attr('y2', lineY)
-						.attr('stroke', r.deck.h.color)
-						.attr('stroke-width', 1);
+					if (! r.meta.disableLine)
+						r.groupP[index].append('line')
+							.attr('class', "svg-data svg-data-line")
+							.attr('x1', r.scaleX(line.s))
+							.attr('x2', r.scaleX(line.e))
+							.attr('y1', lineY).attr('y2', lineY)
+							.attr('stroke', r.deck.h.color)
+							.attr('stroke-width', 1);
 					
 					// Draw melody
-					var delta;
 					if (r.deck.melody && ! r.meta.disableMelody) {
-						r.deck.melody.forEach(function(deck) {
+						r.deck.melody.forEach(function(deck, facet_index) {
 							var points = [[], []];
 							var timeStep = profileData.info.timeStep;
 							melodyData = profileData[r.deck.melody_cat][line.id];
@@ -1434,11 +1497,77 @@ app.directive('chartLines', function() {
 								points[0].push.apply(points[0], [r.scaleX(frameID), lineY + delta, r.scaleX(frameID + timeStep), lineY + delta]);
 								points[1].push.apply(points[1], [r.scaleX(frameID), lineY - delta, r.scaleX(frameID + timeStep), lineY - delta]);
 							}
-							r.groupP[index].append("polygon")
-								.attr('class', 'svg-data svg-data-melody')
-								.attr("points", p2s(points[0], points[1]))
-								.attr('fill', deck.color);
+							if (! r.meta['disableMelody' + facet_index])
+								r.groupP[index].append("polygon")
+									.attr('class', 'svg-data svg-data-melody')
+									.attr("points", p2s(points[0], points[1]))
+									.attr('fill', deck.color);
 						});
+					}
+					
+					// Draw sequences
+					if (r.deck.sequences && ! r.meta.disableSequenceDashs) {
+						var seqData = profileData.events.q;
+						var cPoints = [[r.scaleX(r.meta.begin), lineY], [r.scaleX(r.meta.begin), lineY]];
+						var uPoints = [[r.scaleX(r.meta.begin), lineY], [r.scaleX(r.meta.begin), lineY]];
+						var cUseDelta = false;
+						var uUseDelta = false;
+						delta = 3;
+						
+						for (var t in seqData) {
+							if (t > r.meta.begin) {
+								// Count
+								if ((index == 0 && lineLenght - line_index - 1 < seqData[t]) || (index == 1 && line_index < seqData[t])) {
+									if (! cUseDelta) {
+										cPoints[0].push.apply(cPoints[0], [r.scaleX(t), lineY, r.scaleX(t), lineY + delta]);
+										cPoints[1].push.apply(cPoints[1], [r.scaleX(t), lineY, r.scaleX(t), lineY - delta]);
+										cUseDelta = true;
+									}
+								} else {
+									if (cUseDelta) {
+										cPoints[0].push.apply(cPoints[0], [r.scaleX(t), lineY + delta, r.scaleX(t), lineY]);
+										cPoints[1].push.apply(cPoints[1], [r.scaleX(t), lineY - delta, r.scaleX(t), lineY]);
+										cUseDelta = false;
+									}
+								}
+								// Under
+								if (seqData[t] <= r.meta.sequenceThreshold && ((index == 0 && lineLenght - line_index - 1 < seqData[t]) || (index == 1 && line_index < seqData[t]))) {
+									if (! uUseDelta) {
+										uPoints[0].push.apply(uPoints[0], [r.scaleX(t), lineY, r.scaleX(t), lineY + delta]);
+										uPoints[1].push.apply(uPoints[1], [r.scaleX(t), lineY, r.scaleX(t), lineY - delta]);
+										uUseDelta = true;
+									}
+								} else {
+									if (uUseDelta) {
+										uPoints[0].push.apply(uPoints[0], [r.scaleX(t), lineY + delta, r.scaleX(t), lineY]);
+										uPoints[1].push.apply(uPoints[1], [r.scaleX(t), lineY - delta, r.scaleX(t), lineY]);
+										uUseDelta = false;
+									}
+								}
+							}
+						}
+						
+						if (cUseDelta) {
+							cPoints[0].push.apply(cPoints[0], [cPoints[0][cPoints[0].length - 2], lineY]);
+							cPoints[1].push.apply(cPoints[1], [cPoints[1][cPoints[1].length - 2], lineY]);
+						}
+						if (uUseDelta) {
+							uPoints[0].push.apply(uPoints[0], [uPoints[0][uPoints[0].length - 2], lineY]);
+							uPoints[1].push.apply(uPoints[1], [uPoints[1][uPoints[1].length - 2], lineY]);
+						}
+						
+						// Count
+						r.groupP[index].append("polygon")
+							.attr('class', 'svg-data svg-data-sequence svg-data-doing')
+							.attr("points", p2s(cPoints[0], cPoints[1]))
+							.attr('fill', r.deck.sequences.count.color);
+						
+						// Under
+						if (uPoints[0].length > 2)
+							r.groupP[index].append("polygon")
+								.attr('class', 'svg-data svg-data-sequence svg-data-doing')
+								.attr("points", p2s(uPoints[0], uPoints[1]))
+								.attr('fill', r.deck.sequences.under.color);
 					}
 				});
 				
@@ -1446,6 +1575,88 @@ app.directive('chartLines', function() {
 				directive_repaint_VCustomAxis(r, index, r.deck.h, lines);
 				
 				// Draw dependencies
+				if (r.deck.depends) {
+					var depData = profileData.dependencies[r.deck.depends.list];
+					
+					for (var lock in depData) {
+						var holded, start;
+						depData[lock].forEach(function(event) {
+							// Failure
+							if (event.x == 'lf') {
+								// Line
+								r.groupP[index].insert('line', ':first-child')
+									.attr('class', "svg-data svg-data-line")
+									.attr('x1', r.scaleX(event.t)).attr('x2', r.scaleX(event.t))
+									.attr('y1', mapLines[event.h].y).attr('y2', mapLines[event.hl].y)
+									.attr('stroke', r.deck.depends.failure.color)
+									.attr('stroke-width', 1)
+									.attr('stroke-dasharray', '2,2');
+								// Cross
+								r.groupP[index].append('text')
+									.attr('class', 'svg-data svg-data-failure svg-data-failure-label')
+									.attr('x', r.scaleX(event.t))
+									.attr('y', mapLines[event.h].y)
+									.attr('text-anchor', 'middle')
+									.attr('alignment-baseline', 'central')
+									.attr('dominant-baseline', 'central')
+									.attr('font-size', '10px')
+									.attr('fill', r.deck.depends.failure.color)
+									.text('×');
+							} else
+							
+							// Success
+							if (event.x == 'ls') {
+								// Tick
+								r.groupP[index].append('line')
+									.attr('class', "svg-data svg-data-line")
+									.attr('x1', r.scaleX(event.t)).attr('x2', r.scaleX(event.t))
+									.attr('y1', mapLines[event.h].y - 4).attr('y2', mapLines[event.h].y + 4)
+									.attr('stroke', r.deck.depends.working.fcolor)
+									.attr('stroke-width', 1);
+								
+								holded = event;
+							} else
+							
+							// Release
+							if (event.x == 'lr') {
+								start = (holded) ? holded.t : mapLines[holded.h].s;
+								// Line
+								if (event.t - start > 0) {
+									// Period
+									r.groupP[index].append('line')
+										.attr('class', "svg-data svg-data-line")
+										.attr('x1', r.scaleX(start)).attr('x2', r.scaleX(event.t))
+										.attr('y1', mapLines[holded.h].y).attr('y2', mapLines[holded.h].y)
+										.attr('stroke', r.deck.depends.working.color)
+										.attr('stroke-width', 5);
+									
+									// Tick
+									r.groupP[index].append('line')
+										.attr('class', "svg-data svg-data-line")
+										.attr('x1', r.scaleX(event.t)).attr('x2', r.scaleX(event.t))
+										.attr('y1', mapLines[holded.h].y - 4).attr('y2', mapLines[holded.h].y + 4)
+										.attr('stroke', r.deck.depends.working.fcolor)
+										.attr('stroke-width', 1);
+								}
+								
+								holded = null;
+							}
+						}, this);
+						
+						if (holded) {
+							// Line
+							if (mapLines[holded.h].e - holded.t > 0)
+								r.groupP[index].append('line')
+									.attr('class', "svg-data svg-data-line")
+									.attr('x1', r.scaleX(holded.t)).attr('x2', r.scaleX(mapLines[holded.h].e))
+									.attr('y1', mapLines[holded.h].y).attr('y2', mapLines[holded.h].y)
+									.attr('stroke', r.deck.depends.working.color)
+									.attr('stroke-width', 5);
+							
+						}
+					}
+				}
+				/*
 				if (r.deck.depends) {
 					var facet, points, lineFrom, lineTo;
 					
@@ -1487,6 +1698,7 @@ app.directive('chartLines', function() {
 								.attr('fill', 'transparent');
 						});
 				}
+				*/
 			});
 
 			// Post-treatment

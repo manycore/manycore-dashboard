@@ -1,72 +1,57 @@
 <tabset>
 	<h4>{{widget.title}}</h4>
-	<tab>
-		<tab-heading><i class="fa fa-bar-chart"></i> graph</tab-heading>
+	<div class="btn-group btn-group-sm" ng-if="widget.deck.modes">
+		<label ng-repeat="mode in widget.deck.modes" class="btn btn-default" ng-model="widget.mode" btn-radio="mode.id" uncheckable>{{mode.label}}</label>
+	</div>
+	<tab disable="!widget.desc">
+		<tab-heading><i class="fa fa-info"></i> description</tab-heading>
+		<p>{{widget.desc}}</p>
 	</tab>
-	<tab>
-		<tab-heading><i class="fa fa-info-circle"></i> legend</tab-heading>
-		<p ng-if="widget.desc">{{widget.desc}}</p>
+	<tab active="true">
+		<tab-heading><i class="fa fa-bar-chart"></i> legend</tab-heading>
 		<div class="row">
 			<div class="col-sm-5">
-				<h5>Axis:</h5>
-				<ul class="facet-list" style="font-size: 0.85em;">
-					<li id="l4{{widget.id}}t">
-						<style>#l4{{widget.id}}t:before { content: "➨ "; color: #000; }</style><!-- ➽ -->
-						<strong>Time line</strong>: the horizontal scale is in seconds<br />
-						from <em>{{selection.begin / 1000}}</em> s to <em>{{selection.end / 1000}}</em> s
-					</li>
-					<li id="l3{{widget.id}}{{$index}}" ng-repeat="facet in widget.deck.texts">
-						<style>#l3{{widget.id}}{{$index}}:before { content: "tX "; color: {{facet.color}}; }</style>
-						<strong style="color: {{facet.color}};">{{facet.title}}</strong>: {{facet.desc}}
-					</li>
-				</ul>
+				<!--<h5>Axis:</h5>-->
+				<facet-list list="widget.deck.legend.axis" prelist="axisList" options="widget.deck.legend.options"></facet-list>
 			</div>
 			<div class="col-sm-7">
-				<h5>Data shown:</h5>
-				<ul class="facet-list" style="font-size: 0.85em;">
-					<li id="l1{{widget.id}}{{$index}}" ng-repeat="facet in widget.deck.data">
-						<style>#l1{{widget.id}}{{$index}}:before { content: "▮ "; color: {{facet.color}}; }</style>
-						<strong>{{facet.title}}</strong>: {{facet.desc}}
-					</li>
-					<li id="l2{{widget.id}}{{$index}}" ng-repeat="facet in widget.deck.legend">
-						<style>#l2{{widget.id}}{{$index}}:before { content: "▮ "; color: {{facet.color}}; }</style>
-						<strong>{{facet.title}}</strong>: {{facet.desc}}
-					</li>
-				</ul>
+				<!--<h5>Data shown:</h5>-->
+				<facet-list list="widget.deck.legend.data"></facet-list>
 			</div>
 		</div>
 	</tab>
 	<tab disable="widget.deck.clues.length == 0">
-		<tab-heading><i class="fa fa-medkit"></i> help</tab-heading>
+		<tab-heading><i class="fa fa-medkit"></i> diagnostic</tab-heading>
 		<!--<p class="clues-label">
 			Clues about troubleshooting:
 		</p>-->
-		<ul class="facet-list" style="font-size: 0.85em;">
-			<li id="cli{{widget.id}}{{$index}}" ng-repeat="clue in widget.deck.clues">
-				<style>#cli{{widget.id}}{{$index}}:before { content: "▮ "; color: {{clue.color}}; }</style>
-				<strong>{{clue.tax}}</strong>: {{clue.text}}
-			</li>
-		</ul>
+		<facet-list list="widget.deck.clues"></facet-list>
 	</tab>
 	<tab disable="widget.deck.settings.length == 0">
 		<tab-heading><i class="fa fa-sliders"></i> settings</tab-heading>
 		<div class="form-horizontal settings">
-			<div class="form-group" ng-repeat="setting in widget.deck.settings">
+			<div class="form-group" ng-repeat="setting in widget.deck.settings" ng-if="! setting.depends || widget.settings[setting.depends[0]] == setting.depends[1]">
 				<label class="col-sm-2 control-label">{{setting.label}}</label>
 				<div class="col-sm-10" ng-if="setting.type == 'flag'">
-					<div class="checkbox"><label>
-						<input type="checkbox" ng-model="widget.settings[setting.property]" ng-disabled="widget.settings[setting.depends] === false" />
-						{{setting.desc}}
-					</label></div>
+					<div class="checkbox checkbox-info">
+						<input id="setting-input-{{widget.id}}{{$index}}" type="checkbox" ng-model="widget.settings[setting.property]" />
+						<label for="setting-input-{{widget.id}}{{$index}}">{{setting.desc}}</label>
+					</div>
 				</div>
 				<div class="col-sm-10" ng-if="setting.type == 'range'">
 					<div class="range range-primary">
-						<input type="range" ng-model="widget.settings[setting.property]" min="{{setting.min}}" max="{{setting.max}}" step="{{setting.step}}" ng-disabled="widget.settings[setting.depends] === false" />
+						<input type="range" ng-model="widget.settings[setting.property]" min="{{setting.min}}" max="{{setting.max}}" step="{{setting.step}}" />
 						<output>{{widget.settings[setting.property]}} {{setting.unit}}</output>
+					</div>
+				</div>
+				<div class="col-sm-10" ng-if="setting.type == 'select'">
+					<div class="btn-group btn-group-sm">
+						<label ng-repeat="choice in setting.choices" class="btn btn-default" ng-model="widget.settings[setting.property]" btn-radio="$index" uncheckable>{{choice}}</label>
 					</div>
 				</div>
 			</div>
 		</div>
 	</tab>
+	<tab heading="collapse tab"></tab>
 </tabset>
 <div class="profile-body" ng-include="'/details/widgets/' + widget.file + '.widget.html'"></div>

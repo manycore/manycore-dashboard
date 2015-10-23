@@ -30,7 +30,7 @@ function addStats(output, profile) {
 
 	// Stats
 	output.stats = {
-		h:	data.stats.threads,
+		h:	data.stats.threads,	// TO MOVE in *.info.threads (actually used for number of logical cores)
 		
 	    // s:	data.stats.switches,
 	    // m:	data.stats.migrations,
@@ -39,13 +39,6 @@ function addStats(output, profile) {
 		// y:	data.stats.ready,
 		// b:	data.stats.standby,
 		// w:	data.stats.wait,
-		
-		// l1:		data.stats.l1miss,
-		// l2:		data.stats.l2miss,
-		// l3:		data.stats.l3miss,
-		// tlb:	data.stats.tlbmiss,
-		// dzf:	data.stats.dzf,
-		// hpf:	data.stats.hpf,
 
 		// locality: data.locality.stats,
 	};

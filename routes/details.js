@@ -103,7 +103,7 @@ function addCommon(output, id) {
 
 	// Stats
 	output.stats = {
-		h:	data.stats.threads,
+		h:	data.stats.threads,	// TO MOVE in *.info.threads (actually used for number of logical cores)
 		
 	    s:	data.stats.switches,
 	    m:	data.stats.migrations,
@@ -112,23 +112,16 @@ function addCommon(output, id) {
 		r:	Math.round(data.stats.running),
 		y:	Math.round(data.stats.ready),
 		b:	Math.round(data.stats.standby),
-		w:	Math.round(data.stats.wait),
-
-		l1:		data.stats.l1miss,
-		l2:		data.stats.l2miss,
-		l3:		data.stats.l3miss,
-		tlb:	data.stats.tlbmiss,
-		dzf:	data.stats.dzf,
-		hpf:	data.stats.hpf
+		w:	Math.round(data.stats.wait)
 	};
 
 	// Threads
-	output.threads = {info: []};
-	for(var h in data.lifecycle) {
+	output.threads = { info: [] };
+	for (var h in data.threads.list) {
 		output.threads.info.push({
 			h: +h,
-			s: data.lifecycle[h].s,
-			e: data.lifecycle[h].e,
+			s: data.threads.list[h].s,
+			e: data.threads.list[h].e,
 		});
 	};
 
@@ -292,7 +285,9 @@ function addLocks(output, id) {
 	output.stats.locks = {
 		ls:	data.stats.lock_success,
 		lf:	data.stats.lock_failure,
-		lw:	data.stats.lock_wait
+		lr:	data.stats.lock_release,
+		lw:	data.stats.lock_wait,
+		lh:	data.stats.lock_hold
 	};
 }
 
@@ -346,7 +341,8 @@ function addDependencies(output, id) {
 	// Init return
 	output.dependencies	= {
 		ls: [],
-		lf: []
+		lf: [],
+		locks: data.locks
 	};
 
 	// List lock success
@@ -358,6 +354,61 @@ function addDependencies(output, id) {
 	// List lock failure
 	data.lock_failure.forEach(function(lock) {
 		output.dependencies.lf.push(lock);
+	});
+
+	// List lock release
+	/*data.lock_failure.forEach(function(lock) {
+		output.dependencies.lf.push(lock);
+	});*/
+}
+
+/**
+ * Add events (only parallel/sequential at the moment)
+ */
+function addEvents(output, id) {
+	// Init vars
+	var data = profiles[id].data;
+	var previous_r = -1;
+	
+	// Init return
+	output.events	= {
+		q: {}
+	};
+
+	// List lock success
+	for (var t in data.events.sequences) {
+		if (data.events.sequences[t].c_r != previous_r) {
+			output.events.q[t] = data.events.sequences[t].c_r;
+			previous_r = data.events.sequences[t].c_r;
+		}
+	}
+}
+
+/**
+ * Add threads informations
+ */
+function addThreadInfo(output, id, profile, properties) {
+	// Init vars
+	var data =	profiles[id].data;
+	var isPN =	properties.indexOf('pn') >= 0;
+	var isCT =	properties.indexOf('ct') >= 0;
+	var isIPC =	properties.indexOf('ipc') >= 0;
+	var isTLB =	properties.indexOf('tlb') >= 0;
+	var isL1 =	properties.indexOf('l1') >= 0;
+	var isL2 =	properties.indexOf('l2') >= 0;
+	var isL3 =	properties.indexOf('l3') >= 0;
+	var isHPF =	properties.indexOf('hpf') >= 0;
+	
+	// Add infos
+	output.threads.info.forEach(function(thread) {
+		if (isPN)	thread.pn = profile.label;
+		if (isCT)	thread.ct = Math.round(data.threads.list[thread.h].ct * 100 / output.info.duration);
+		if (isIPC)	thread.ipc = data.threads.list[thread.h].ipc;
+		if (isTLB)	thread.tlb = data.threads.list[thread.h].tlb;
+		if (isL1)	thread.l1 = data.threads.list[thread.h].l1;
+		if (isL2)	thread.l2 = data.threads.list[thread.h].l2;
+		if (isL3)	thread.l3 = data.threads.list[thread.h].l3;
+		if (isHPF)	thread.hpf = data.threads.list[thread.h].hpf;
 	});
 }
 
@@ -468,6 +519,9 @@ function jsonLB(profile, id) {
 	
 	// Add dependencies for locks
 	addDependencies(output, id);
+	
+	// Add sequences
+	addEvents(output, id);
 
 	return output;
 }
@@ -487,6 +541,9 @@ function jsonDL(profile, id) {
 
 	// Data
 	addLocality(output, id, false);
+	
+	// Parallel coordinates
+	addThreadInfo(output, id, profile, ['pn', 'ct', 'ipc', 'tlb', 'l1', 'l2', 'l3', 'hpf']);
 
 	return output;
 }

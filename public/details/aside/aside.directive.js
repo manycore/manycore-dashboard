@@ -13,12 +13,11 @@ var statLayout = function() {
 	
 	// Constants
 	this.stacks =		{ width: 10, padding: 4 };
-	this.percents =		{ width: 3, padding: 1 };
 	this.lineHeight =	40;
 
 	// Compute
 	this.refresh = function(deck, profiles) {
-		self.width =	(profiles.length == 1) ? self.stacks.width : 2 * (self.stacks.width + self.stacks.padding + self.percents.width) + self.percents.padding;
+		self.width =	(profiles.length == 1) ? self.stacks.width : self.stacks.width * 2 + self.stacks.padding;
 		self.height =	self.lineHeight * deck.length;
 	};
 };
@@ -28,6 +27,26 @@ var statLayout = function() {
 /*	Common directive mecanisms							  */
 /*														  */
 /**********************************************************/
+
+
+
+/**********************************************************/
+/*														  */
+/*	Utilities											  */
+/*														  */
+/**********************************************************/
+
+/**
+ * Constants
+ */
+var ASIDE_CURRENT_ID = 1;
+
+/**
+ * Array of points to string
+ */
+function aside_getNewID() {
+	return ++ASIDE_CURRENT_ID;
+}
 
 
 
@@ -68,48 +87,40 @@ app.directive('chartStats', function() {
 			
 		// Groups
 		var groupS = [];
-		var groupP = [];
 		groupS.push(svg.append("g")
 			.attr('class', "svg-stack svg-profile-1"));
-		if (profiles.length == 2) {
-			groupP.push(svg.append("g")
-				.attr('class', "svg-percent svg-profile-1")
-				.attr("transform", "translate(" + (layout.stacks.width + layout.stacks.padding) + ", 0)"));
+		if (profiles.length == 2)
 			groupS.push(svg.append("g")
 				.attr('class', "svg-stack svg-profile-2")
-				.attr("transform", "translate(" + (layout.stacks.width + 2 * layout.stacks.padding + 2 * layout.percents.width + layout.percents.padding) + ", 0)"));
-			groupP.push(svg.append("g")
-				.attr('class', "svg-percent svg-profile-2")
-				.attr("transform", "translate(" + (layout.stacks.width + layout.stacks.padding + layout.percents.width + layout.percents.padding) + ", 0)"));
-		}
+				.attr("transform", "translate(" + (layout.stacks.width + layout.stacks.padding) + ", 0)"));
 
-		// Draw rectanges
-		var yValue, yPrevious;
-		for (var index = 0; index < profiles.length; index++) {
-			stats.values[index].forEach(function(element, i) {
-				// Stack
-				yValue = layout.height * element.value / stats.maxSum;
-				yPrevious = layout.height * element.previous / stats.maxSum;
-				groupS[index].append("rect")
-					.attr("width", layout.stacks.width)
-					.attr("x", 0)
-					.attr("y", layout.height - yPrevious - yValue)
-					.attr("height", yValue)
-					.style("fill", deck[i].color)
+		// Paint
+		function repaint() {
+			var yValue, yPrevious, maxValue;
+			for (var index = 0; index < profiles.length; index++) {
+				// Clean
+				groupS[index].selectAll('*').remove();
 				
-				// Percent
-				if (profiles.length == 2) {
-					yValue = layout.height * element.value / stats.sums[index];
-					yPrevious = layout.height * element.previous / stats.sums[index];
-					groupP[index].append("rect")
-						.attr("width", layout.percents.width)
+				// Top
+				maxValue = (stats.mode == 'units') ? stats.maxSum : stats.sums[index]; 
+				
+				// Draw rectanges
+				stats.values[index].forEach(function(element, i) {
+					yValue = layout.height * element.value / maxValue;
+					yPrevious = layout.height * element.previous / maxValue;
+					if (yValue >= 1) groupS[index].append("rect")
+						.attr("width", layout.stacks.width)
 						.attr("x", 0)
 						.attr("y", layout.height - yPrevious - yValue)
 						.attr("height", yValue)
-						.style("fill", deck[i].color);
-				}
-			}, this);
+						.style("fill", deck[i].color)
+				}, this);
+			}
 		}
+		
+		// Bind
+		// (call the first repaint instance)
+		scope.$watch(function() { return stats.mode; }, repaint);
 	};
 
 
@@ -118,3 +129,57 @@ app.directive('chartStats', function() {
 		restrict: 'E'
 	}
 });
+
+
+/**
+ * Facet list
+ */
+app.directive('facetList', [function() {
+	return {
+		templateUrl : '/details/aside/facetList.template.html',
+		bindToController: true,
+		scope: {
+			prelist: '=',
+			list: '=',
+			options: '='
+		},
+		controllerAs : 'dv',
+		controller : function() {
+			console.log("== directive == facetList ==");
+			var listID = aside_getNewID();
+			var sources = [];
+			var provider = [];
+			var styles = '';
+			
+			var allowPrelist = ! (this.options && this.options.disablePrelist);
+			
+			if (allowPrelist && this.prelist) sources.push(this.prelist);
+			if (this.list) sources.push(this.list);
+			
+			var itemID;
+			sources.forEach(function(source, i1) {
+				source.forEach(function(item, i2) {
+					itemID = 'l' + listID + 's' + i1 + 'i' + i2;
+					provider.push({
+						i: itemID,
+						t: ('t' in item) ? item.t : ('f' in item) ? item.f.title : '',
+						d: ('d' in item) ? item.d : ('f' in item) ? item.f.desc : ''
+					});
+					styles += '#' + itemID + ':before {' +
+							'content: "' + (('b' in item) ? item.b : '▮') + '";' +
+							'color: ' + (('c' in item) ? item.c : ('f' in item) ? item.f.color : '#000') + ';' +
+						'}';
+				});
+			});
+			
+			// Scope named 'dv'
+			this.provider = provider;
+			this.styles = styles;
+		},
+		link: function link(scope, element, attrs) {
+			// Add main class
+			d3.select(element[0]).attr("class", "aside");
+		},
+		restrict: 'E'
+	}
+}]);

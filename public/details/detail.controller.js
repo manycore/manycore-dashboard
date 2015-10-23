@@ -32,7 +32,10 @@ app.controller('DetailController', ['$scope', '$rootScope', '$window', '$statePa
 		colMD: { graph: 9, data: 3 },
 		colLG: { graph: 9, data: 3 }
 	};
-
+	
+	
+	// Axis common list
+	var axisTime = { b: '⇛', c: '#000;', t: '[X] Time', d: 'time line in horizontal with scale in seconds, from -b- s to -e- s' }; // ⇛ ➨ ➽ 
 
 
 	
@@ -46,7 +49,6 @@ app.controller('DetailController', ['$scope', '$rootScope', '$window', '$statePa
 
 		$http.get('/service/details/'+ tag + '/' + dataToRetreive.join('-')).success(function(data) {
 			profiles.forEach(function(profile) {
-				profile.currentData = data[profile.id];
 				profile.data[tag] = data[profile.id];
 			});
 			postReceiption();
@@ -57,11 +59,42 @@ app.controller('DetailController', ['$scope', '$rootScope', '$window', '$statePa
 	 * Retreive - populate
 	 */
 	function postReceiption() {
+		//
+		//	Data
+		//
+		profiles.forEach(function(profile) {
+			profile.currentData = profile.data[tag];
+		});
+		
+		
+		//
+		//	Selection
+		//
 		$scope.selection = {
 			begin: 0,
 			end: (profiles.length > 1) ? Math.max(profiles[0].data[tag].info.duration, profiles[1].data[tag].info.duration) : profiles[0].data[tag].info.duration
 		}
+		
+		
+		//
+		//	Axis
+		//
+		// clear
+		$scope.axisList.splice(0, $scope.axisList.length);
+		
+		// customize
+		var aTime = JSON.parse(JSON.stringify(axisTime));
+		aTime.d = aTime.d
+			.replace("-b-", Math.round($scope.selection.begin / 100) / 10)
+			.replace("-e-", Math.round($scope.selection.end / 100) / 10);
+		
+		// populate
+		$scope.axisList.push(aTime);
 
+		
+		//
+		//	Finish to wait
+		//
 		waiting =	false;
 	}
 	
@@ -111,29 +144,40 @@ app.controller('DetailController', ['$scope', '$rootScope', '$window', '$statePa
 	/**
 	 * Generator - setting
 	 */
-	function createSettings(widget) {
+	function initWidget(widget) {
+		// Create settings
 		var settings = { version: 0 };
 
-		if (widget.deck != null && widget.deck.settings != null)
-			widget.deck.settings.forEach(function(setting) {
-				settings["_" + setting.property] = setting.value;
-
-				settings.__defineGetter__(setting.property, function () {
-					return settings["_" + setting.property];
+		if (widget.deck != null) {
+			// Modes
+			if (widget.deck.modes) {
+				widget.mode = widget.deck.modes[0].id;
+			}
+			
+			// Populate settings
+			if (widget.deck.settings != null) {
+				widget.deck.settings.forEach(function(setting) {
+					settings["_" + setting.property] = setting.value;
+	
+					settings.__defineGetter__(setting.property, function () {
+						return settings["_" + setting.property];
+					});
+	
+					settings.__defineSetter__(setting.property, function (val) {
+						if (settings["_" + setting.property] != val) {
+							try {
+								settings["_" + setting.property] = JSON.parse(val);
+							} catch(e) {
+								settings["_" + setting.property] = val;
+							};
+							settings.version++;
+						}
+					});
 				});
-
-				settings.__defineSetter__(setting.property, function (val) {
-					if (settings["_" + setting.property] != val) {
-						try {
-							settings["_" + setting.property] = JSON.parse(val);
-						} catch(e) {
-							settings["_" + setting.property] = val;
-						};
-						settings.version++;
-					}
-				});
-			});
-
+			}
+		}
+		
+		// Populate
 		widget.settings = settings;
 	};
 
@@ -176,6 +220,7 @@ app.controller('DetailController', ['$scope', '$rootScope', '$window', '$statePa
 		}
 		
 		return {
+			mode: $scope.statMode,
 			values: values,
 			sums: sums,
 			maxSum: Math.max.apply(this, sums)
@@ -207,10 +252,12 @@ app.controller('DetailController', ['$scope', '$rootScope', '$window', '$statePa
 	$scope.ids = ids;
 	$scope.profiles = profiles;
 	$scope.isWaiting = isWaiting;
-	$scope.createSettings = createSettings;
+	$scope.initWidget = initWidget;
 	$scope.layout = layout;
 	$scope.meta = categories[tag];
 	$scope.mouseOver = mouseOver;
 	$scope.mouseLeave = mouseLeave;
 	$scope.createStats = createStats;
+	$scope.axisList = []; // poputaled in postReceiption()
+	$scope.statMode = 'units';
 }]);

@@ -5,24 +5,70 @@
 	float: left;
 	margin-right: 40px;
 }
-.widgets .nav-tabs > li.active:not(:first-of-type) > a {
+.widgets .btn-group {
+	float: left;
+	margin-right: 40px;
+}
+.widgets .nav-tabs > li.active:not(:last-of-type) > a {
 	background-color: #F9F9F9;
 }
-.widgets .tab-pane:not(:first-of-type) {
+.widgets .nav-tabs > li:last-of-type > a {
+	background-color: transparent !important;
+	border-color: transparent transparent #DDD !important;
+}
+.widgets .tab-pane:not(:last-of-type) {
 	padding: 10px 0px 15px 0px;
 	background-color: #F9F9F9;
 	border-bottom: 1px solid #DDD;
 }
 
 /*
- * Facet list
+ * Charts D3
  */
-.widgets ul.facet-list {
-	list-style: none;
-	padding: 0;
-	margin: 0;
+.svg-d3 .axis .label {
+	font-size: 120%;
+	font-weight: 700;
+	text-shadow: 0 1px 0 #fff, 1px 0 0 #fff, 0 -1px 0 #fff, -1px 0 0 #fff;
 }
-.widgets ul.facet-list li { 
-	padding-left: 1em;
-	text-indent: -1.2em;
+.svg-d3 .axis .domain {
+	fill: none;
+	stroke: #C0C0C0;
+	shape-rendering: crispedges;
+}
+.svg-d3 .axis .tick line {
+	fill: none;
+	stroke: #C0C0C0;
+	shape-rendering: crispedges;
+}
+.svg-d3 .axis .tick text {
+	fill: #606060;
+	text-shadow: 0 1px 0 #fff, 1px 0 0 #fff, 0 -1px 0 #fff, -1px 0 0 #fff;
+}
+.svg-d3 .brush .extent {
+	cursor: ns-resize !important;
+	fill-opacity: .2;
+	stroke: #606060;
+	shape-rendering: crispEdges;
+}
+/*.svg-d3 .brush .resize rect {
+	fill: rgba(0, 0, 0, 0.1);
+}*/
+.svg-d3 .brush .remove-brush {
+	font-size: 16px;
+	cursor: pointer;
+}
+.svg-d3 .brush .resize {
+	cursor: row-resize !important;
+}
+.svg-d3 .svg-background path {
+	fill: none;
+	stroke: #eee;
+	shape-rendering: auto;
+}
+.svg-d3 .svg-foreground path {
+	fill: none;
+	shape-rendering: geometricPrecision;
+	/*
+	stroke: #8DD28A;
+	stroke-width: 2*/
 }

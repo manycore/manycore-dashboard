@@ -13,7 +13,6 @@
 		padding-top: 20px;
 	}
 </style>
-<div class="row admin"><div class="col-xs-12">
 <tabset>
 	<span class="tab-title">Admin area</span>
 	<tab disable="isWaiting()">
@@ -27,7 +26,6 @@
 				<h4>Soon</h4>
 				<ul>
 					<li><b>DS:</b> last graph : cache line invalidation</li>
-					<li><b>DL:</b> last graph : parrallel coordinates</li>
 					<li><b>RS:</b> everything</li>
 				</ul>
 				<h4>Postponed</h4>
@@ -46,7 +44,22 @@
 		
 		<div class="col-sm-9">
 		<accordion close-others="false">
-			<accordion-group heading="0.8 - August 2015" is-open="true">
+			<accordion-group heading="0.10 - October 2015" is-open="true">
+				<p><span class="label label-success">Data locality</span><ul>
+					<li>add parallel coordinates</li>
+					<li>improve parallel coordinates interactions</li>
+				</ul></p>
+			</accordion-group>
+			<accordion-group heading="0.9 - September 2015">
+				<p><span class="label label-success">Load balancing</span><ul>
+					<li>new sequential/parallel sequences graph</li>
+				</ul></p>
+				<p><span class="label label-default">Data</span><ul>
+					<li>add philosopher dinning 5 and update 45</li>
+				</ul></p>
+				<p><span class="label label-primary">Stats</span> add percentage view mode in addition of the sum view mode</p>
+			</accordion-group>
+			<accordion-group heading="0.8 - August 2015">
 				<p><span class="label label-success">Dashboard</span><ul>
 					<li>working on new version focused on the problem's taxonomy</li>
 					<li>adding very basic sequence graph</li>
@@ -102,10 +115,6 @@
 		</div>
 		
 		</div>
-	</tab>
-	<tab disable="isWaiting()">
-		<tab-heading><i class="fa fa-sliders"></i> Global Settings</tab-heading>
-		TODO
 	</tab>
 	<tab disable="isWaiting()" select="loadCacheVersions()">
 		<tab-heading><i class="fa fa-database"></i> Cache versions</tab-heading>
@@ -266,5 +275,3 @@
 		<i class="fa fa-spinner fa-pulse fa-2x"></i>
 	</div>
 </tabset>
-
-</div></div>

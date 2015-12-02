@@ -1,3 +1,4 @@
+/* global app */
 /**********************************************************/
 /*														  */
 /*	Common smart objects								  */
@@ -21,7 +22,7 @@ var graphLayout = function(favoriteHeight) {
 	// Constants
 	this.padding	= { top: 10, right: 20, bottom: 10, left: 60, inner: 4 };
 	this.profile	= { favoriteHeight: favoriteHeight };
-	this.xAxis		= { height: 10, text: 8, textShift: 8, arrow: 8, arrowShift: 4 };
+	this.xAxis		= { height: 10, text: 6, textShift: 8, arrow: 8, arrowShift: 4 };
 	this.vAxis		= { fontSize: 10, profileFontSize: 12 };
 
 	// Compute
@@ -138,6 +139,9 @@ function directive_init(scope, element, attrs, layoutType, mirror, canOverflow) 
 	// Attributes
 	var deck =		scope.widget.deck.graph;
 	var meta =		new graphMeta(scope, attrs, mirror, canOverflow, scope.widget.deck.params, properties);
+	
+	// Widget
+	meta.widget =	{ index: scope.iw };
 
 	// Data
 	var profiles =	scope.profiles;
@@ -180,6 +184,38 @@ function directive_init(scope, element, attrs, layoutType, mirror, canOverflow) 
 		iSelection:	[null, null]
 	};
 }
+
+/**
+ * Focus - init
+ */
+function directive_focus_init(r, repeater) {
+	var prefix;
+	var valuedPins = [];
+	
+	
+	// By profile
+	r.profiles.forEach(function(profile, index) {
+		prefix = 'pin-' + r.meta.widget.index + '-' + index + '-';
+		
+		// for melody
+		if (r.deck.melody) {
+			// Repeat
+			for (var l = 0; l < repeater[index]; l++) {
+				valuedPins.push({
+					id: prefix + 'melody-' + l,
+					l: (l == 0) ? r.deck.melody.label : '',
+					f: r.deck.melody
+				})
+			}
+		}
+		
+		
+	})
+	
+	// Push pins
+	r.scope.focusInitPins(valuedPins);
+}
+
 
 /**
  * Repaint - container
@@ -269,7 +305,7 @@ function directive_repaint_post(r) {
 /**
  * Repaint - Bind
  */
-function directive_bind(scope, element, r, repaint, select) {
+function directive_bind(scope, element, r, repaint, select, addWidgetY) {
 	// Size
 	scope.$watch(function() { return r.container.clientWidth; }, repaint);
 	
@@ -295,11 +331,14 @@ function directive_bind(scope, element, r, repaint, select) {
 	
 	// Selection FROM controller
 	// Controller treated and sent selection position
-	scope.$on('xEvent', function(event, x) {
-		if (isNaN(x)) {
+	scope.$on('xEvent', function(event, positions) {
+		if (positions.isOut) {
 			directive_unselect(r);
 		} else {
-			select(x);
+			if (addWidgetY)
+				select(positions, r.container.getBoundingClientRect().top + window.pageYOffset - document.documentElement.clientTop);
+			else
+				select(positions);
 		}
 	});
 }
@@ -330,11 +369,11 @@ function directive_repaint_xAxis(r) {
 	// Clock symbol
 	r.groupX.append('text')
 		.attr('class', 'svg-text')
-		.attr('y', r.layout.xAxis.textShift + 2)
+		.attr('y', r.layout.xAxis.textShift)
 		.attr('x', -16)
 		.attr('text-anchor', 'end')
 		.attr('font-size', (r.layout.xAxis.text + 4) + 'px')
-		.text('time'); // ⌛ 🕓
+		.text('time'); // ⌛ 🕓 elapsed time
 	
 	// Labels
 	var texts = r.scaleX.ticks();
@@ -534,247 +573,6 @@ function n2ft(v) {
 /**********************************************************/
 
 /**
- * Thread states
- */
-app.directive('chartCapacity', function() {
-
-	function chart_link(scope, element, attrs, controller) {
-		console.log("== directive == chartCapacity ==");
-
-		// Init vars
-		var r = directive_init(scope, element, attrs, LAYOUT_FH_NORMAL, true, true);
-
-		// Enhance meta
-		r.meta.cores = [];
-		r.meta.rounds = [];
-		r.profiles.forEach(function(profile, i) {
-			r.meta.cores.push(profile.hardware.data.threads);
-			r.meta.vExpected[i] = profile.hardware.data.threads * profile.currentData.info.timeStep;
-			r.meta.vMinDisplay[i] = (profile.hardware.data.threads + 1) * profile.currentData.info.timeStep;
-			r.meta.vStep[i] = r.meta.vExpected[i] / profile.hardware.data.cores; // by 100 for 8 cores ; by 50 for 4 cores
-			r.meta.rounds[i] = r.meta.vExpected[i] / profile.hardware.data.threads;
-		});
-
-		// Meta - settings
-		r.meta.crenellate = r.settings.crenellate;
-
-		// Enhance layout
-
-		// Crenellate
-		function vAxisLabel(v, index) {
-			if (v == r.meta.vExpected[index]) {
-				return 'CPU';
-			} else if (r.meta.crenellate && v < r.meta.vExpected[index]) {
-				return 'core';
-			} else {
-				return n2ft(v / r.meta.vExpected[index]);
-			}
-		}
-
-		// Redraw
-		function repaint() {
-			// Repaint container
-			directive_repaint_container(r);
-
-			// Vars
-			var capacity = r.meta.cores[0];
-
-			// Repaint scales
-			directive_repaint_scales(r, [0, r.meta.vMinDisplay[0]], [0, r.meta.vMinDisplay[1]]);
-
-			// Repaint graphical elements
-			directive_repaint_xAxis(r);
-
-			// Main draw
-			var profileData, pointsC, pointsS, pointsR, pointsOver;
-			var coordinates, valueS, valueR, valuesOver, scaleLimit;
-			var tStep, tID;
-			r.profiles.forEach(function(profile, index) {
-				// vars
-				profileData = profile.currentData;
-				r.iData[index] = [];
-
-				// All - points - start
-				pointsC = [r.scaleX(r.meta.begin), r.scalesV[index](0)];
-				pointsS = [r.scaleX(r.meta.begin), r.scalesV[index](0)];
-				pointsR = [r.scaleX(r.meta.begin), r.scalesV[index](r.meta.vExpected[index])];
-				pointsOver = [[r.scaleX(r.meta.begin), r.scalesV[index](r.meta.vExpected[index])]];
-				valuesOver = [r.meta.vExpected[index]];
-				scaleLimit = r.scalesV[index](r.meta.vExpected[index])
-
-				r.deck.v.forEach(function(v) {
-					pointsOver.push([]);
-					valuesOver.push(NaN);
-				})
-
-				// All - points - capacity
-				pointsC.push.apply(pointsC, [r.scaleX(r.meta.begin), scaleLimit, r.scaleX(r.meta.ends[index]), scaleLimit]);
-
-				// All - points - data
-				tStep = profileData.info.timeStep;
-				for (var t = r.meta.begin; t < r.meta.ends[index]; t += tStep) {
-					tID = t / tStep;
-
-					// Referencial
-					valueS = profileData[r.deck.s.cat][t][r.deck.s.attr];
-					valueR = r.meta.vExpected[index] - profileData[r.deck.r.cat][t][r.deck.r.attr];
-					
-					// options
-					if (r.meta.crenellate) {
-						valueS = rV(valueS, r.meta.rounds[index]);
-						valueR = rV(valueR, r.meta.rounds[index]);
-					}
-
-					// Build for selection
-					coordinates = [r.scaleX(t), r.scaleX(t + tStep), r.scalesV[index](valueS), r.scalesV[index](valueR), scaleLimit];
-
-					// Save referencial shape
-					pointsS.push.apply(pointsS, [coordinates[0], coordinates[2], coordinates[1], coordinates[2]]);
-					pointsR.push.apply(pointsR, [coordinates[0], coordinates[3], coordinates[1], coordinates[3]]);
-
-					for (var v = 0; v < r.deck.v.length; v++) {
-						// Value
-						valuesOver[v+1] = profileData[r.deck.v[v].cat][t][r.deck.v[v].attr] + valuesOver[v];
-						if (r.meta.crenellate) valuesOver[v+1] = rV(valuesOver[v+1], r.meta.rounds[index]);
-
-						// Build for selection
-						coordinates.push(r.scalesV[index](valuesOver[v+1]));
-
-						// Save value shape
-						pointsOver[v+1].push.apply(pointsOver[v+1], [coordinates[0], coordinates[5 + v], coordinates[1], coordinates[5 + v]]);
-
-						if (v == r.deck.v.length - 1)
-							r.meta.vOverflow[index] = Math.max(r.meta.vOverflow[index], 0 - coordinates[5 + v], coordinates[5 + v] - r.layout.profile.height);
-					};
-
-					// Save for selection
-					r.iData[index].push(coordinates);
-				}
-
-				// All - points - end
-				pointsC.push.apply(pointsC, [r.scaleX(r.meta.ends[index]), r.scalesV[index](0)]);
-				pointsS.push.apply(pointsS, [r.scaleX(r.meta.ends[index]), r.scalesV[index](0)]);
-				pointsR.push.apply(pointsR, [r.scaleX(r.meta.ends[index]), scaleLimit]);
-				pointsOver[0].push.apply(pointsOver[0], [r.scaleX(r.meta.ends[index]), scaleLimit]);
-
-				// Clean
-				r.groupP[index].selectAll('*').remove();
-
-				// Draw - Capacity
-				r.groupP[index].append("polygon")
-					.attr('class', "svg-limit")
-					.attr("points", p2s(pointsC))
-					.attr('fill', r.deck.limit.color);
-
-				// Draw - System
-				r.groupP[index].append("polygon")
-					.attr('class', "svg-state-system")
-					.attr("points", p2s(pointsS))
-					.attr('fill', r.deck.s.color);
-
-				// Draw - Running
-				r.groupP[index].append("polygon")
-					.attr('class', "svg-state-running")
-					.attr("points", p2s(pointsR))
-					.attr('fill', r.deck.r.color);
-				
-				// Draw - Over
-				for (var v = 0; v < r.deck.v.length; v++) {
-					r.groupP[index].append("polygon")
-						.attr('class', "svg-state-ready")
-						.attr("points", p2s(pointsOver[v+1], pointsOver[v]))
-						.attr('fill', r.deck.v[v].color);
-				};
-
-				// Value axis
-				directive_repaint_VAxis(r, index, vAxisLabel);
-			});
-
-			// Post-treatment
-			directive_repaint_post(r);
-		}
-
-		// Select
-		function select(x) {
-			// Time ID
-			var tIndex = Math.floor(r.scaleX.invert(x) / 50);
-			if (tIndex == r.meta.lastSelectID) {
-				return;
-			} else {
-				r.meta.lastSelectID = tIndex;
-			}
-
-			// Loop
-			var pointsC, pointsS, pointsR, pointsOver;
-			for (var index = 0; index < r.profiles.length; index++) {
-
-				// Points of shapes
-				if (tIndex < r.meta.ends[index] / r.profiles[index].currentData.info.timeStep) {
-					pointsS = [r.iData[index][tIndex][0], r.scalesV[index](0), r.iData[index][tIndex][0], r.iData[index][tIndex][2], r.iData[index][tIndex][1], r.iData[index][tIndex][2], r.iData[index][tIndex][1], r.scalesV[index](0)];
-					pointsC = [r.iData[index][tIndex][0], r.iData[index][tIndex][2], r.iData[index][tIndex][0], r.iData[index][tIndex][3], r.iData[index][tIndex][1], r.iData[index][tIndex][3], r.iData[index][tIndex][1], r.iData[index][tIndex][2]];
-					pointsR = [r.iData[index][tIndex][0], r.iData[index][tIndex][3], r.iData[index][tIndex][0], r.iData[index][tIndex][4], r.iData[index][tIndex][1], r.iData[index][tIndex][4], r.iData[index][tIndex][1], r.iData[index][tIndex][3]];
-					pointsOver = [];
-					for (var v = 0; v < r.deck.v.length; v++) pointsOver.push([r.iData[index][tIndex][0], r.iData[index][tIndex][4 + v], r.iData[index][tIndex][0], r.iData[index][tIndex][5 + v], r.iData[index][tIndex][1], r.iData[index][tIndex][5 + v], r.iData[index][tIndex][1], r.iData[index][tIndex][4 + v]]);
-
-				} else {
-					pointsS = [];
-					pointsC = [];
-					pointsR = [];
-					pointsOver = [];
-					for (var v = 0; v < r.deck.v.length; v++) pointsOver.push([]);
-				}
-
-				// Draw points
-				if (r.iSelection[index] != null) {
-					r.iSelection[index].select(".svg-state-system").attr("points", p2s(pointsS));
-					r.iSelection[index].select(".svg-limit").attr("points", p2s(pointsC));
-					r.iSelection[index].select(".svg-state-running").attr("points", p2s(pointsR));
-					for (var v = r.deck.v.length - 1; v >= 0; v--) r.iSelection[index].select(".svg-area-" + v).attr("points", p2s(pointsOver[v]));
-				} else {
-					r.iSelection[index] = r.groupP[index].append("g").attr('class', "svg-selection");
-
-					// Draw - System
-					r.iSelection[index].append("polygon")
-						.attr('class', "svg-state-system")
-						.attr("points", p2s(pointsS))
-						.attr('fill', r.deck.s.fcolor);
-
-					// Draw - Capacity
-					r.iSelection[index].append("polygon")
-						.attr('class', "svg-limit")
-						.attr("points", p2s(pointsC))
-						.attr('fill', r.deck.limit.fcolor);
-
-					// Draw - Running
-					r.iSelection[index].append("polygon")
-						.attr('class', "svg-state-running")
-						.attr("points", p2s(pointsR))
-						.attr('fill', r.deck.r.fcolor);
-
-					// Draw - OVer
-					for (var v = r.deck.v.length - 1; v >= 0; v--) {
-						r.iSelection[index].append("polygon")
-							.attr('class', "svg-area svg-area-" + v)
-							.attr("points", p2s(pointsOver[v]))
-							.attr('fill', r.deck.v[v].fcolor);
-					};
-				}
-			}
-		}
-
-		// Bind
-		directive_bind(scope, element, r, repaint, select);
-	}
-
-	return {
-		link: chart_link,
-		restrict: 'E'
-	}
-});
-
-
-
-/**
  * Percentage
  */
 app.directive('chartPercent', function() {
@@ -789,11 +587,22 @@ app.directive('chartPercent', function() {
 		r.meta.vExpected[0] =	100;	r.meta.vExpected[1] =	100;
 		r.meta.vMinDisplay[0] =	110;	r.meta.vMinDisplay[1] =	110;
 		r.meta.vStep[0] =		25;		r.meta.vStep[1] =		25;
-
-
-		// Crenellate
-		function vAxisLabel(v, index) {
-			return v + ' %';
+		
+		// Value axis labels
+		if (r.deck.axis && r.deck.axis.labels == 'cores') {
+			r.meta.vAxisLabel = function(v, index) {
+				if (v == r.meta.vExpected[index]) {
+					return 'CPU';
+				} else if (v < r.meta.vExpected[index]) {
+					return 'core';
+				} else {
+					return n2ft(v / r.meta.vExpected[index]);
+				}
+			}
+		} else {
+			r.meta.vAxisLabel = function(v, index) {
+				return v + ' %';
+			}
 		}
 
 		// Redraw
@@ -808,8 +617,8 @@ app.directive('chartPercent', function() {
 			directive_repaint_xAxis(r);
 
 			// Main draw
-			var profileData, iData, yPositions, yScaledPosition;
-			var tStep, currentV, scaleVZero;
+			var profileData, yPositions, yScaledPosition;
+			var tStep, scaleVZero;
 			r.profiles.forEach(function(profile, index) {
 				// Clean
 				r.groupP[index].selectAll('*').remove();
@@ -830,8 +639,8 @@ app.directive('chartPercent', function() {
 				scaleVZero = r.scalesV[index](0);
 				for (var t = r.meta.begin; t < r.meta.end; t += tStep) {
 					for (var v = 0; v < r.deck.v.length; v++) {
-						if (profileData[r.deck.v[v].cat].hasOwnProperty(t) && profileData[r.deck.v[v].cat][t].hasOwnProperty(r.deck.v[v].attr))
-							yPositions[v] = profileData[r.deck.v[v].cat][t][r.deck.v[v].attr];
+						if (profileData.percent.hasOwnProperty(t) && profileData.percent[t].hasOwnProperty(r.deck.v[v].attr))
+							yPositions[v] = profileData.percent[t][r.deck.v[v].attr];
 						else
 							yPositions[v] = 0;
 
@@ -862,7 +671,7 @@ app.directive('chartPercent', function() {
 				};
 
 				// Value axis
-				directive_repaint_VAxis(r, index, vAxisLabel);
+				directive_repaint_VAxis(r, index, r.meta.vAxisLabel);
 			});
 
 			// Post-treatment
@@ -870,9 +679,10 @@ app.directive('chartPercent', function() {
 		}
 
 		// Select
-		function select(x) {
+		function select(positions, y0) {
 			// Time ID
-			var tIndex = Math.floor(r.scaleX.invert(x) / 50);
+			var tIndex = positions.i50;
+			var t = positions.f50;
 			if (tIndex == r.meta.lastSelectID) {
 				return;
 			} else {
@@ -881,10 +691,16 @@ app.directive('chartPercent', function() {
 
 			// Loop
 			for (var index = 0; index < r.profiles.length; index++) {
+				// Focus prefix for rules
+				var prefixID = 'rule-' + r.meta.widget.index + '-' + index + '-';
+				
 				// Reuse
 				if (r.iSelection[index] != null) {
 					for (var v = r.deck.v.length - 1; v >= 0; v--) {
 						r.iSelection[index].select(".svg-area-" + v).attr("points", p2s(r.iData[index][v + 1].slice(tIndex * 4, tIndex * 4 + 4), r.iData[index][v].slice(tIndex * 4, tIndex * 4 + 4)));
+						
+						// Send new coordinates to controller
+						updateFocusRule(prefixID, y0, index, t, tIndex, v);
 					}
 				}
 				// Draw
@@ -897,13 +713,36 @@ app.directive('chartPercent', function() {
 							.attr('class', "svg-area svg-area-" + v)
 							.attr("points", p2s(r.iData[index][v + 1].slice(tIndex * 4, tIndex * 4 + 4), r.iData[index][v].slice(tIndex * 4, tIndex * 4 + 4)))
 							.attr('fill', r.deck.v[v].fcolor);
+						
+						// Send new coordinates to controller
+						updateFocusRule(prefixID, y0, index, t, tIndex, v);
 					};
 				}
 			}
 		}
+		
+		function updateFocusRule(prefixID, y0, index, t, tIndex, v) {
+			var facet = r.deck.v[v];
+			
+			if (t >= r.meta.ends[index] || ! r.profiles[index].currentData.percent[t][facet.attr]) {
+				// Send disable to controller
+				r.scope.focusRuleHandle(prefixID + facet.attr, NaN, NaN);
+				
+			} else {
+				
+				var value = r.profiles[index].currentData[facet.cat][t][facet.attr];
+				if (facet.unity) value += ' ' + facet.unity;
+				
+				// Send new coordinates to controller
+				r.scope.focusRuleHandle(
+					prefixID + facet.attr,
+					y0 + (r.iData[index][v + 1][tIndex * 4 + 1] + r.iData[index][v][tIndex * 4 + 1]) / 2 + r.layout.profile.y[index] + r.meta.vOverflow[index],
+					value);
+			}
+		}
 
 		// Bind
-		directive_bind(scope, element, r, repaint, select);
+		directive_bind(scope, element, r, repaint, select, true);
 	}
 
 	return {
@@ -947,6 +786,7 @@ app.directive('chartUnits', function() {
 				r.meta.vMinDisplay[1] =	r.deck.displayed(r.profiles[1], r.settings.timeGroup);
 				r.meta.vStep[1] =		r.deck.vStep(r.profiles[1], r.settings.timeGroup);
 			}
+			r.meta.countedUnits = [[], []];
 
 			// Repaint scales
 			directive_repaint_scales(r, [0, r.meta.vMinDisplay[0]], [0, r.meta.vMinDisplay[1]]);
@@ -978,6 +818,7 @@ app.directive('chartUnits', function() {
 					dataSource_index.push(0);
 					yPositions.push(NaN);
 					r.iData[index].push([]);
+					r.meta.countedUnits[index].push([]);
 				};
 
 				// All - points - data
@@ -993,6 +834,9 @@ app.directive('chartUnits', function() {
 							yPositions[v]++;
 							dataSource_index[v]++;
 						}
+						
+						// Save counted units
+						r.meta.countedUnits[index][v].push(yPositions[v]);
 
 						// Stack positions
 						if (v > 0)
@@ -1029,9 +873,9 @@ app.directive('chartUnits', function() {
 		}
 
 		// Select
-		function select(x) {
+		function select(positions, y0) {
 			// Time ID
-			var tIndex = Math.floor(r.scaleX.invert(x) / r.settings.timeGroup);
+			var tIndex = Math.floor(positions.t / r.settings.timeGroup);
 			if (tIndex == r.meta.lastSelectID) {
 				return;
 			} else {
@@ -1040,10 +884,16 @@ app.directive('chartUnits', function() {
 
 			// Loop
 			for (var index = 0; index < r.profiles.length; index++) {
+				// Focus prefix for rules
+				var prefixID = 'rule-' + r.meta.widget.index + '-' + index + '-';
+				
 				// Reuse
 				if (r.iSelection[index] != null) {
 					for (var v = r.deck.v.length - 1; v >= 0; v--) {
 						r.iSelection[index].select(".svg-area-" + v).attr("points", p2s(r.iData[index][v + 1].slice(tIndex * 4, tIndex * 4 + 4), r.iData[index][v].slice(tIndex * 4, tIndex * 4 + 4)));
+						
+						// Send new coordinates to controller
+						updateFocusRule(prefixID, y0, index, tIndex, v);
 					}
 				}
 				// Draw
@@ -1056,13 +906,38 @@ app.directive('chartUnits', function() {
 							.attr('class', "svg-area svg-area-" + v)
 							.attr("points", p2s(r.iData[index][v + 1].slice(tIndex * 4, tIndex * 4 + 4), r.iData[index][v].slice(tIndex * 4, tIndex * 4 + 4)))
 							.attr('fill', r.deck.v[v].fcolor);
+						
+						// Send new coordinates to controller
+						updateFocusRule(prefixID, y0, index, tIndex, v);
 					};
 				}
 			}
 		}
+		
+		
+		function updateFocusRule(prefixID, y0, index, tIndex, v) {
+			var facet = r.deck.v[v];
+			
+			if (tIndex >= r.meta.ends[index] / r.settings.timeGroup) {
+				// Send disable to controller
+				r.scope.focusRuleHandle(prefixID + facet.attr, NaN, NaN);
+				
+			} else {
+				
+				var value = r.meta.countedUnits[index][v][tIndex];
+				if (facet.unity) value += ' ' + facet.unity;
+				
+				// Send new coordinates to controller
+				//console.log(index, y0, (r.iData[index][v + 1][tIndex * 4 + 1] + r.iData[index][v][tIndex * 4 + 1]) / 2, r.layout.profile.y[index], r.meta.vOverflow[index]);
+				r.scope.focusRuleHandle(
+					prefixID + facet.attr,
+					y0 + (r.iData[index][v + 1][tIndex * 4 + 1] + r.iData[index][v][tIndex * 4 + 1]) / 2 + r.layout.profile.y[index] + r.meta.vOverflow[index],
+					value);
+			}
+		}
 
 		// Bind
-		directive_bind(scope, element, r, repaint, select);
+		directive_bind(scope, element, r, repaint, select, true);
 	}
 
 	return {
@@ -1106,8 +981,8 @@ app.directive('chartStack', function() {
 			directive_repaint_xAxis(r);
 
 			// Main draw
-			var profileData, iData, yPositions, yScaledPosition;
-			var tStep, currentV, scaleVZero;
+			var profileData, yPositions, yScaledPosition;
+			var tStep, scaleVZero;
 			r.profiles.forEach(function(profile, index) {
 				// Clean
 				r.groupP[index].selectAll('*').remove();
@@ -1168,10 +1043,10 @@ app.directive('chartStack', function() {
 		}
 
 		// Select
-		function select(x) {
+		function select(positions) {
 			// Time ID
-			var tIndex = Math.floor(r.scaleX.invert(x) / 50);
-			if (tIndex == r.meta.lastSelectID) {
+			var tIndex = positions.f50;
+			if (tIndex >= r.meta.ends[index] / r.settings.timeGroup) {
 				return;
 			} else {
 				r.meta.lastSelectID = tIndex;
@@ -1361,7 +1236,7 @@ app.directive('chartThreads', function() {
 		}
 
 		// Select
-		function select(x) {
+		function select(positions) {
 		}
 
 		// Bind
@@ -1389,9 +1264,25 @@ app.directive('chartLines', function() {
 
 		// Enhance meta
 		if (! r.meta.lineHeight) r.meta.lineHeight = 12;
+		
+		// lines
+		r.meta.lines = [
+											 (r.meta.hackLineProvider) ? r.deck.linesHack(r.profiles[0]) : r.deck.lines(r.profiles[0]),
+			(r.profiles.length < 2) ? null : (r.meta.hackLineProvider) ? r.deck.linesHack(r.profiles[1]) : r.deck.lines(r.profiles[1])
+		];
+		r.meta.linesLength = [
+			(r.meta.lines[0]) ? r.meta.lines[0].length : 0,
+			(r.meta.lines[1]) ? r.meta.lines[1].length : 0
+		];
+		
+		// Init focus pins
+		directive_focus_init(r, r.meta.linesLength);
+		
+		// Init internal data
+		r.iData = {};
 
 		// Redraw
-		var lines, mapLines;
+		var mapLines;
 		function repaint() {
 			// Repaint container
 			directive_repaint_container(r);
@@ -1401,21 +1292,22 @@ app.directive('chartLines', function() {
 
 			// Repaint graphical elements
 			directive_repaint_xAxis(r);
+			
+			// Clean
+			if (r.deck.melody) r.iData.melody = [[], []];
 
 			// Main draw
-			var profileData, melodyData;
-			var groupHeight, lineLenght, lineY;
+			var profileData;
+			var groupHeight, lineY;
 			var delta;
 			r.profiles.forEach(function(profile, index) {
 				// Clean
 				r.groupP[index].selectAll('*').remove();
 
 				// Data
-				lines = (r.meta.hackLineProvider) ? r.deck.linesHack(profile, r.meta.begin, r.meta.ends[index]) : r.deck.lines(profile, r.meta.begin, r.meta.ends[index]);
-				lineLenght = lines.length;
 				mapLines = {};
 				profileData = profile.currentData;
-				groupHeight = lineLenght * r.meta.lineHeight;
+				groupHeight = r.meta.linesLength[index] * r.meta.lineHeight;
 				
 				// Expand graph
 				r.meta.vOverflow[index] = groupHeight;
@@ -1468,7 +1360,7 @@ app.directive('chartLines', function() {
 				}
 				
 				// Draw lines
-				lines.forEach(function(line, line_index) {
+				r.meta.lines[index].forEach(function(line, line_index) {
 					// Map
 					mapLines[line.id] = line;
 					
@@ -1488,21 +1380,24 @@ app.directive('chartLines', function() {
 					
 					// Draw melody
 					if (r.deck.melody && ! r.meta.disableMelody) {
-						r.deck.melody.forEach(function(deck, facet_index) {
-							var points = [[], []];
-							var timeStep = profileData.info.timeStep;
-							melodyData = profileData[r.deck.melody_cat][line.id];
-							for (var frameID = r.meta.begin; frameID < r.meta.ends[index]; frameID += timeStep) {
-								delta = melodyData[frameID][deck.attr] * r.meta.melodyHeight / 2 / timeStep;
-								points[0].push.apply(points[0], [r.scaleX(frameID), lineY + delta, r.scaleX(frameID + timeStep), lineY + delta]);
-								points[1].push.apply(points[1], [r.scaleX(frameID), lineY - delta, r.scaleX(frameID + timeStep), lineY - delta]);
-							}
-							if (! r.meta['disableMelody' + facet_index])
-								r.groupP[index].append("polygon")
-									.attr('class', 'svg-data svg-data-melody')
-									.attr("points", p2s(points[0], points[1]))
-									.attr('fill', deck.color);
-						});
+						// Compute points
+						var points = [[], []];
+						var timeStep = profileData.info.timeStep;
+						for (var frameID = r.meta.begin; frameID < r.meta.ends[index]; frameID += timeStep) {
+							delta = profileData[r.deck.melody_cat][line.id][frameID][r.deck.melody.attr] * r.meta.melodyHeight / 2 / timeStep;
+							points[0].push.apply(points[0], [r.scaleX(frameID), lineY + delta, r.scaleX(frameID + timeStep), lineY + delta]);
+							points[1].push.apply(points[1], [r.scaleX(frameID), lineY - delta, r.scaleX(frameID + timeStep), lineY - delta]);
+						}
+						
+						// Save melody data
+						r.iData.melody[index].push(points);
+						
+						// Draw melody (if necessary)
+						if (! r.meta.disableMelody)
+							r.groupP[index].append("polygon")
+								.attr('class', 'svg-data svg-data-melody')
+								.attr("points", p2s(points[0], points[1]))
+								.attr('fill', r.deck.melody.color);
 					}
 					
 					// Draw sequences
@@ -1517,7 +1412,7 @@ app.directive('chartLines', function() {
 						for (var t in seqData) {
 							if (t > r.meta.begin) {
 								// Count
-								if ((index == 0 && lineLenght - line_index - 1 < seqData[t]) || (index == 1 && line_index < seqData[t])) {
+								if ((index == 0 && r.meta.linesLength[index] - line_index - 1 < seqData[t]) || (index == 1 && line_index < seqData[t])) {
 									if (! cUseDelta) {
 										cPoints[0].push.apply(cPoints[0], [r.scaleX(t), lineY, r.scaleX(t), lineY + delta]);
 										cPoints[1].push.apply(cPoints[1], [r.scaleX(t), lineY, r.scaleX(t), lineY - delta]);
@@ -1531,7 +1426,7 @@ app.directive('chartLines', function() {
 									}
 								}
 								// Under
-								if (seqData[t] <= r.meta.sequenceThreshold && ((index == 0 && lineLenght - line_index - 1 < seqData[t]) || (index == 1 && line_index < seqData[t]))) {
+								if (seqData[t] <= r.meta.sequenceThreshold && ((index == 0 && r.meta.linesLength[index] - line_index - 1 < seqData[t]) || (index == 1 && line_index < seqData[t]))) {
 									if (! uUseDelta) {
 										uPoints[0].push.apply(uPoints[0], [r.scaleX(t), lineY, r.scaleX(t), lineY + delta]);
 										uPoints[1].push.apply(uPoints[1], [r.scaleX(t), lineY, r.scaleX(t), lineY - delta]);
@@ -1572,7 +1467,7 @@ app.directive('chartLines', function() {
 				});
 				
 				// Value axis
-				directive_repaint_VCustomAxis(r, index, r.deck.h, lines);
+				directive_repaint_VCustomAxis(r, index, r.deck.h, r.meta.lines[index]);
 				
 				// Draw dependencies
 				if (r.deck.depends) {
@@ -1706,11 +1601,75 @@ app.directive('chartLines', function() {
 		}
 
 		// Select
-		function select(x) {
+		function select(positions, y0) {
+			
+			// Select melody
+			if (r.deck.melody && ! r.meta.disableMelody) {
+				
+				// Time ID
+				var t = positions.t;
+				var tIndex = positions.f50;
+				var frameID = positions.i50;
+				t = Math.round(t);
+				if (tIndex == r.meta.lastSelectID) {
+					return;
+				} else {
+					r.meta.lastSelectID = tIndex;
+				}
+	
+				// Loop
+				for (var index = 0; index < r.profiles.length; index++) {
+					// Focus prefix for rules
+					var prefixID = 'pin-' + r.meta.widget.index + '-' + index + '-melody-';
+					
+					// Reuse
+					if (r.iSelection[index] != null) {
+						for (var l = r.meta.linesLength[index] - 1; l >= 0; l--) {
+							r.iSelection[index].select(".svg-area-melody-" + l).attr("points", p2s(r.iData.melody[index][l][1].slice(tIndex * 4, tIndex * 4 + 4), r.iData.melody[index][l][0].slice(tIndex * 4, tIndex * 4 + 4)));
+							
+							// Send new coordinates to controller
+							updateMelodyPin(prefixID, l, y0, index, t, frameID);
+						}
+					}
+					// Draw
+					else {
+						r.iSelection[index] = r.groupP[index].append("g").attr('class', "svg-selection");
+	
+						// Draw
+						for (var l = r.meta.linesLength[index] - 1; l >= 0; l--) {
+							r.iSelection[index].append("polygon")
+								.attr('class', "svg-area svg-area-melody-" + l)
+								.attr("points", p2s(r.iData.melody[index][l][1].slice(tIndex * 4, tIndex * 4 + 4), r.iData.melody[index][l][0].slice(tIndex * 4, tIndex * 4 + 4)))
+								.attr('fill', r.deck.melody.fcolor);
+							
+							// Send new coordinates to controller
+							updateMelodyPin(prefixID, l, y0, index, t, frameID);
+						};
+					}
+				}
+			}
+		}
+		
+		function updateMelodyPin(prefixID, l, y0, index, t, frameID) {
+			console.log('move'); // arguments
+			if (t >= r.meta.ends[index]) {
+				// Send disable to controller
+				r.scope.focusMovePin(prefixID + l, NaN, NaN);
+				
+			} else {
+				var value = r.profiles[index].currentData[r.deck.melody_cat][l][frameID][r.deck.melody.attr];
+				if (r.deck.melody.unity) value += ' ' + r.deck.melody.unity;
+				
+				// Send new coordinates to controller
+				r.scope.focusMovePin(
+					prefixID + l,
+					y0 + r.meta.lines[index][l].y + r.layout.profile.y[index] + r.meta.vOverflow[index],
+					value);
+			}
 		}
 
 		// Bind
-		directive_bind(scope, element, r, repaint, select);
+		directive_bind(scope, element, r, repaint, select, true);
 	}
 
 	return {

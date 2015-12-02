@@ -129,17 +129,165 @@ function addCommon(output, id) {
 	output.threads.info.sort(function(a, b){return a.s - b.s});
 }
 
+
+/**
+ * Add raw data for visualisations and stats
+ */
+function addRawData(output, id, statProperties, frameProperties, eventProperties, threadTimeProperties, threadEventProperties, coreTimeProperties, addDalaLocality) {
+	// Shortcut vars
+	var hasF =	frameProperties && frameProperties.length > 0;
+	var hasE =	eventProperties && eventProperties.length > 0;
+	var isB =	{ s: statProperties.indexOf('b') >= 0,	f: hasF && frameProperties.indexOf('b') >= 0,													 };
+	var isI =	{ s: statProperties.indexOf('i') >= 0,	f: hasF && frameProperties.indexOf('i') >= 0,													 };
+	var isM =	{ s: statProperties.indexOf('m') >= 0,													e: hasE && eventProperties.indexOf('m') >= 0,	 };
+	var isR =	{ s: statProperties.indexOf('r') >= 0,	f: hasF && frameProperties.indexOf('r') >= 0,													 };
+	var isS =	{ s: statProperties.indexOf('s') >= 0,													e: hasE && eventProperties.indexOf('s') >= 0,	 };
+	var isY =	{ s: statProperties.indexOf('y') >= 0,	f: hasF && frameProperties.indexOf('y') >= 0,	 												 };
+	var isLF =	{ s: statProperties.indexOf('lf') >= 0,													e: hasE && eventProperties.indexOf('lf') >= 0,	 };
+	var isLS =	{ s: statProperties.indexOf('ls') >= 0,													e: hasE && eventProperties.indexOf('ls') >= 0,	 };
+	var isLW =	{ s: statProperties.indexOf('lw') >= 0,	f: hasF && frameProperties.indexOf('lw') >= 0,													 };
+	var isYB =	{ 										f: hasF && frameProperties.indexOf('yb') >= 0,													 };
+	var isSYS =	{ 										f: hasF && frameProperties.indexOf('sys') >= 0,													 };
+	
+	// Find data (real raw data)
+	var data =	profiles[id].data;
+	var hardware = profiles[id].hardware;
+	
+	// Compute some data
+	var max = {
+		timeProfile: data.info.duration * hardware.data.lcores,
+		timeFrame: data.info.timeStep * hardware.data.lcores,
+		locality: data.locality.stats.ipc + data.locality.stats.tlb + data.locality.stats.l1 + data.locality.stats.l2 + data.locality.stats.l3 + data.locality.stats.hpf
+	};
+	
+	
+	// Prepare output
+	output.raw = {
+		stats: {},
+		statsPercent: {},
+		amount: [],
+		amountPercent: [],
+		events: {},
+		threads: {
+			times: {},
+			events: {}
+		},
+		cores: {
+			times: {}
+		}
+	}
+	
+	//
+	// Add stats
+	//
+	if (isB.s) {	output.raw.stats.b =	Math.round(data.stats.standby);			output.raw.statsPercent.b =		Math.round(100 * data.stats.standby / max.timeProfile); }
+	if (isI.s) {	output.raw.stats.i =	Math.round(data.stats.idle);			output.raw.statsPercent.i =		Math.round(100 * data.stats.idle / max.timeProfile); }
+	if (isM.s) {	output.raw.stats.m =	data.stats.migrations; }
+	if (isR.s) {	output.raw.stats.r =	Math.round(data.stats.running);			output.raw.statsPercent.r =		Math.round(100 * data.stats.running / max.timeProfile); }
+	if (isS.s) {	output.raw.stats.s =	data.stats.switches; }
+	if (isY.s) {	output.raw.stats.y =	Math.round(data.stats.ready);			output.raw.statsPercent.y =		Math.round(100 * data.stats.ready / max.timeProfile); }
+	if (isLF.s) {	output.raw.stats.lf =	Math.round(data.stats.lock_failure); }
+	if (isLS.s) {	output.raw.stats.ls =	Math.round(data.stats.lock_success); }
+	if (isLW.s) {	output.raw.stats.lw =	Math.round(data.stats.lock_wait);		output.raw.statsPercent.lw =	Math.round(100 * data.stats.lock_wait / max.timeProfile); }
+	if (addDalaLocality) {
+				output.raw.stats.ipc =	Math.round(data.locality.stats.ipc);	output.raw.statsPercent.ipc =	Math.round(100 * data.locality.stats.ipc / max.locality);
+				output.raw.stats.tlb =	Math.round(data.locality.stats.tlb);	output.raw.statsPercent.tlb =	Math.round(100 * data.locality.stats.tlb / max.locality);
+				output.raw.stats.l1 =	Math.round(data.locality.stats.l1);		output.raw.statsPercent.l1 =	Math.round(100 * data.locality.stats.l1 / max.locality);
+				output.raw.stats.l2 =	Math.round(data.locality.stats.l2);		output.raw.statsPercent.l2 =	Math.round(100 * data.locality.stats.l2 / max.locality);
+				output.raw.stats.l3 =	Math.round(data.locality.stats.l3);		output.raw.statsPercent.l3 =	Math.round(100 * data.locality.stats.l3 / max.locality);
+				output.raw.stats.hpf =	Math.round(data.locality.stats.hpf);	output.raw.statsPercent.hpf =	Math.round(100 * data.locality.stats.hpf / max.locality);
+	}
+	
+	// Time frames
+	if (hasF || addDalaLocality) {
+		var amount, amountPercent, maxAL;
+		for (var timeID = 0; timeID <= data.info.timeMax; timeID+= data.info.timeStep) {
+			
+			//
+			// Add amounts
+			//	- times of states for threads
+			//	- instructions for data locality
+			//
+			if (hasF || addDalaLocality) {
+				amount = { t: timeID };
+				amountPercent = { t: timeID };
+				
+				// Times
+				if (isB.f) { amount.b =		Math.round(data.frames[timeID].standby);								amountPercent.b =	Math.round(100 * (data.frames[timeID].standby) / max.timeFrame); }
+				if (isI.f) { amount.i =		Math.round(data.frames[timeID].idle);									amountPercent.i =	Math.round(100 * data.frames[timeID].idle / max.timeFrame); }
+				if (isR.f) { amount.r =		Math.round(data.frames[timeID].running);								amountPercent.r =	Math.round(100 * data.frames[timeID].running / max.timeFrame); }
+				if (isY.f) { amount.y =		Math.round(data.frames[timeID].ready);									amountPercent.y =	Math.round(100 * (data.frames[timeID].ready) / max.timeFrame); }
+				if (isLW.f) { amount.lw =	Math.round(data.frames[timeID].lock_wait);								amountPercent.lw =	Math.round(100 * data.frames[timeID].lock_wait / max.timeFrame); }
+				if (isYB.f) { amount.yb =	Math.round(data.frames[timeID].ready + data.frames[timeID].standby);	amountPercent.yb =	Math.round(100 * (data.frames[timeID].ready + data.frames[timeID].standby) / max.timeFrame); }
+				if (isSYS.f) {
+					amount.sys =		max.timeFrame - Math.round(data.frames[timeID].running) - Math.round(data.frames[timeID].idle);
+					amountPercent.sys =	100 - Math.round(100 * data.frames[timeID].running / max.timeFrame) - Math.round(100 * data.frames[timeID].idle / max.timeFrame);
+				}
+				
+				// Data locality
+				if (addDalaLocality) {
+					if (data.locality.byFrames.hasOwnProperty(timeID)) {
+						amount.ipc =	Math.round(data.locality.byFrames[timeID].ipc);
+						amount.tlb =	Math.round(data.locality.byFrames[timeID].tlb);
+						amount.l1 =		Math.round(data.locality.byFrames[timeID].l1);
+						amount.l2 =		Math.round(data.locality.byFrames[timeID].l2);
+						amount.l3 =		Math.round(data.locality.byFrames[timeID].l3);
+						amount.hpf =	Math.round(data.locality.byFrames[timeID].hpf);
+						
+						maxAL = data.locality.byFrames[timeID].ipc + data.locality.byFrames[timeID].tlb + data.locality.byFrames[timeID].l1 + data.locality.byFrames[timeID].l2 + data.locality.byFrames[timeID].l3 + data.locality.byFrames[timeID].hpf;
+						
+						amountPercent.ipc =	Math.round(100 * data.locality.byFrames[timeID].ipc / maxAL);
+						amountPercent.tlb =	Math.round(100 * data.locality.byFrames[timeID].tlb / maxAL);
+						amountPercent.l1 =	Math.round(100 * data.locality.byFrames[timeID].l1 / maxAL);
+						amountPercent.l2 =	Math.round(100 * data.locality.byFrames[timeID].l2 / maxAL);
+						amountPercent.l3 =	Math.round(100 * data.locality.byFrames[timeID].l3 / maxAL);
+						amountPercent.hpf =	Math.round(100 * data.locality.byFrames[timeID].hpf / maxAL);
+					} else {
+						amount.ipc = null;	amountPercent.ipc =	0;
+						amount.tlb = null;	amountPercent.tlb =	0;
+						amount.l1 =  null;	amountPercent.l1 =	0;
+						amount.l2 =  null;	amountPercent.l2 =	0;
+						amount.l3 =  null;	amountPercent.l3 =	0;
+						amount.hpf = null;	amountPercent.hpf =	0;
+					}
+				}
+				
+				output.raw.amount.push(amount);
+				output.raw.amountPercent.push(amountPercent);
+			}
+		}
+	}
+	
+	// Events
+	var events;
+	if (hasE) {
+		if (isM.e) output.raw.events.m = data.events.m;
+		if (isS.e) output.raw.events.s = data.events.s;
+		if (isLF.e) {
+			events = [];
+			data.lock_failure.forEach(function(lock) {
+				events.push(lock.t);
+			});
+			output.raw.events.lf = events;
+		}
+		if (isLS.e) {
+			events = [];
+			data.lock_success.forEach(function(lock) {
+				events.push(lock.t);
+			});
+			output.raw.events.ls = events;
+		}
+	}
+}
+
+
+
 /**
  * Add switches
  */
 function addSwitches(output, id) {
 	// Data
 	output.switches = profiles[id].data.events.s;
-
-	// Stats
-	output.stats.switches = {
-		s: profiles[id].data.stats.switches
-	};
 }
 
 /**
@@ -148,11 +296,6 @@ function addSwitches(output, id) {
 function addMigrations(output, id) {
 	// Data
 	output.migrations = profiles[id].data.events.m;
-
-	// Stats
-	output.stats.migrations = {
-		m: profiles[id].data.stats.migrations
-	};
 }
 
 
@@ -167,36 +310,46 @@ function addTimes(output, id, properties) {
 	var isYB =	properties.indexOf('yb') >= 0;
 	var isW =	properties.indexOf('w') >= 0;
 	var isLW =	properties.indexOf('lw') >= 0;
-	var isUU =	properties.indexOf('uu') >= 0;
+	var isI =	properties.indexOf('i') >= 0 || properties.indexOf('uu') >= 0;
 	var isSYS =	properties.indexOf('sys') >= 0;
 	
 	// Init return
 	output.times = {};
+	if (! output.percent) output.percent = {};
 
 	// Add times
 	max = data.info.threads * data.info.timeStep;
 	for (var timeID = 0; timeID <= data.info.timeMax; timeID+= data.info.timeStep) {
+		// Auto create structure
+		if (! output.percent[timeID]) output.percent[timeID] = {};
 		output.times[timeID] = {};
-		if (isR)	output.times[timeID].r =	Math.round(data.frames[timeID].running);
-		if (isYB)	output.times[timeID].yb =	Math.round(data.frames[timeID].ready + data.frames[timeID].standby);
-		if (isW)	output.times[timeID].w =	Math.round(data.frames[timeID].wait);
-		if (isLW)	output.times[timeID].lw =	Math.round(data.frames[timeID].lock_wait);
-		if (isUU)	output.times[timeID].uu =	Math.round(data.frames[timeID].idle);
-		if (isSYS)	output.times[timeID].sys =	Math.round(max - data.frames[timeID].running - data.frames[timeID].idle);
+		
+		if (isR) {
+			output.times[timeID].r =	Math.round(data.frames[timeID].running);
+			output.percent[timeID].r =	Math.round(100 * data.frames[timeID].running / max);
+		}	
+		if (isYB) {
+			output.times[timeID].yb =	Math.round(data.frames[timeID].ready + data.frames[timeID].standby);
+			output.percent[timeID].yb =	Math.round(100 * (data.frames[timeID].ready + data.frames[timeID].standby) / max);
+		}	
+		if (isW) {
+			output.times[timeID].w =	Math.round(data.frames[timeID].wait);
+			output.percent[timeID].w =	Math.round(100 * data.frames[timeID].wait / max);
+		}	
+		if (isLW) {
+			output.times[timeID].lw =	Math.round(data.frames[timeID].lock_wait);
+			output.percent[timeID].lw =	Math.round(100 * data.frames[timeID].lock_wait / max);
+		}	
+		if (isI) {
+			output.times[timeID].uu =	Math.round(data.frames[timeID].idle); // TO DELETE
+			output.times[timeID].i =	Math.round(data.frames[timeID].idle);
+			output.percent[timeID].i =	Math.round(100 * data.frames[timeID].idle / max);
+		}	
+		if (isSYS) {
+			output.times[timeID].sys =		max - Math.round(data.frames[timeID].running) - Math.round(data.frames[timeID].idle);
+			output.percent[timeID].sys =	100 - Math.round(100 * data.frames[timeID].running / max) - Math.round(100 * data.frames[timeID].idle / max);
+		}	
 	}
-
-	// Stats
-	max = data.info.threads * (data.info.timeMax + data.info.timeStep);
-	output.stats.times = {
-		r:		Math.round(data.stats.running),
-		y:		Math.round(data.stats.ready),
-		b:		Math.round(data.stats.standby),
-		yb:		Math.round(data.stats.ready + data.stats.standby),
-		w:		Math.round(data.stats.wait),
-		lw:		data.stats.lock_wait,
-		uu:		Math.round(data.stats.idle),
-		sys:	Math.round(max - data.stats.running - data.stats.idle)
-	};
 }
 
 /**
@@ -233,31 +386,65 @@ function addLocality(output, id, simplified) {
 	// Init vars
 	var data		= profiles[id].data;
 	output.locality	= {};
+	if (! output.percent) output.percent = {};
 
 	// Data
 	var max;
 	for (var frameID in data.locality.byFrames) {
+		// Auto create structure
+		if (! output.percent[frameID]) output.percent[frameID] = {};
+		output.locality[frameID] = {};
+		
 		if (data.locality.byFrames.hasOwnProperty(frameID)) {
-			max = data.locality.byFrames[frameID].ipc + data.locality.byFrames[frameID].tlb + data.locality.byFrames[frameID].l1 + data.locality.byFrames[frameID].l2 + data.locality.byFrames[frameID].l3 + data.locality.byFrames[frameID].hpf
-			if (simplified)
-				output.locality[data.locality.byFrames[frameID].t] = {
-					ipc:	Math.round(100 * data.locality.byFrames[frameID].ipc / max),
-					miss:	100 - Math.round(100 * data.locality.byFrames[frameID].ipc / max)
-				};
-			else
-				output.locality[data.locality.byFrames[frameID].t] = {
-					ipc:	(100 * data.locality.byFrames[frameID].ipc / max),
-					tlb:	(100 * data.locality.byFrames[frameID].tlb / max),
-					l1:		(100 * data.locality.byFrames[frameID].l1 / max),
-					l2:		(100 * data.locality.byFrames[frameID].l2 / max),
-					l3:		(100 * data.locality.byFrames[frameID].l3 / max),
-					hpf:	(100 * data.locality.byFrames[frameID].hpf / max)
-				};
+			if (simplified) {
+				output.locality[frameID].ipc =	Math.round(data.locality.byFrames[frameID].ipc);
+				output.locality[frameID].miss =	Math.round(data.locality.byFrames[frameID].tlb + data.locality.byFrames[frameID].l1 + data.locality.byFrames[frameID].l2 + data.locality.byFrames[frameID].l3 + data.locality.byFrames[frameID].hpf);
+				
+				output.percent[frameID].ipc =	Math.round(100 * data.locality.byFrames[frameID].ipc / max);
+				output.percent[frameID].miss =	100 - output.percent[frameID].ipc;
+				
+			} else {
+				output.locality[frameID].ipc =	Math.round(data.locality.byFrames[frameID].ipc);
+				output.locality[frameID].tlb =	Math.round(data.locality.byFrames[frameID].tlb);
+				output.locality[frameID].l1 =	Math.round(data.locality.byFrames[frameID].l1);
+				output.locality[frameID].l2 =	Math.round(data.locality.byFrames[frameID].l2);
+				output.locality[frameID].l3 =	Math.round(data.locality.byFrames[frameID].l3);
+				output.locality[frameID].hpf =	Math.round(data.locality.byFrames[frameID].hpf);
+				
+				max = data.locality.byFrames[frameID].ipc + data.locality.byFrames[frameID].tlb + data.locality.byFrames[frameID].l1 + data.locality.byFrames[frameID].l2 + data.locality.byFrames[frameID].l3 + data.locality.byFrames[frameID].hpf;
+				
+				output.percent[frameID].ipc =	(100 * data.locality.byFrames[frameID].ipc / max);
+				output.percent[frameID].tlb =	(100 * data.locality.byFrames[frameID].tlb / max);
+				output.percent[frameID].l1 =	(100 * data.locality.byFrames[frameID].l1 / max);
+				output.percent[frameID].l2 =	(100 * data.locality.byFrames[frameID].l2 / max);
+				output.percent[frameID].l3 =	(100 * data.locality.byFrames[frameID].l3 / max);
+				output.percent[frameID].hpf =	(100 * data.locality.byFrames[frameID].hpf / max);
+			}
+		} else {
+			if (simplified) {
+				output.locality[frameID].ipc =	null;
+				output.locality[frameID].miss =	null;
+				
+				output.percent[frameID].ipc =	0;
+				output.percent[frameID].miss =	0;
+				
+			} else {
+				output.locality[frameID].ipc =	null;
+				output.locality[frameID].tlb =	null;
+				output.locality[frameID].l1 =	null;
+				output.locality[frameID].l2 =	null;
+				output.locality[frameID].l3 =	null;
+				output.locality[frameID].hpf =	null;
+				
+				output.percent[frameID].ipc =	0;
+				output.percent[frameID].tlb =	0;
+				output.percent[frameID].l1 =	0;
+				output.percent[frameID].l2 =	0;
+				output.percent[frameID].l3 =	0;
+				output.percent[frameID].hpf =	0;
+			}
 		}
 	}
-
-	// Stats
-	output.stats.locality = data.locality.stats;
 }
 
 /**
@@ -282,13 +469,13 @@ function addLocks(output, id) {
 	});
 
 	// Stats
-	output.stats.locks = {
+	/*output.stats.locks = {
 		ls:	data.stats.lock_success,
 		lf:	data.stats.lock_failure,
 		lr:	data.stats.lock_release,
 		lw:	data.stats.lock_wait,
 		lh:	data.stats.lock_hold
-	};
+	};*/
 }
 
 /**
@@ -429,9 +616,12 @@ function jsonTG(profile, id) {
 	// Common
 	profile.exportInfo(output);
 	addCommon(output, id);
+	
+	// Add raw data for visualisation
+	addRawData(output, id, ['b', 'i', 'm', 'r', 's', 'y'], ['b', 'i', 'r', 'y', 'sys'], ['m', 's'], null, null, null, false);
 
 	// for potential parallelism
-	addTimes(output, id, ['r', 'yb', 'sys']);
+	addTimes(output, id, ['r', 'yb', 'i', 'sys']);
 
 	// for context switches
 	addSwitches(output, id);
@@ -458,10 +648,13 @@ function jsonSY(profile, id) {
 	// Common
 	profile.exportInfo(output);
 	addCommon(output, id);
+	
+	// Add raw data for visualisation
+	addRawData(output, id, ['r', 's', 'lf', 'ls', 'lw'], ['i', 'r', 'lw', 'sys'], ['lf', 'ls'], null, null, null, false);
 
 	// Add locks
 	addLocks(output, id);
-	addTimes(output, id, ['r', 'lw', 'sys']);
+	addTimes(output, id, ['r', 'lw', 'i', 'sys']);
 	
 	// Add ticks
 	addThreadTicks(output, id, ['ls', 'lf']);
@@ -484,9 +677,12 @@ function jsonDS(profile, id) {
 	// Common
 	profile.exportInfo(output);
 	addCommon(output, id);
+	
+	// Add raw data for visualisation
+	addRawData(output, id, ['r', 's', 'lw'], ['i', 'r', 'lw', 'sys'], null, null, null, null, true);
 
 	// Add locks
-	addTimes(output, id, ['r', 'lw', 'sys']);
+	addTimes(output, id, ['r', 'lw', 'i', 'sys']);
 
 	// Add locality
 	addLocality(output, id, false);
@@ -506,12 +702,15 @@ function jsonLB(profile, id) {
 	// Common
 	profile.exportInfo(output);
 	addCommon(output, id);
+	
+	// Add raw data for visualisation
+	addRawData(output, id, ['b', 'i', 'm', 'r', 'y', 'lf', 'ls', 'lw'], ['b', 'i', 'r', 'y', 'lw', 'sys'], ['m'], null, null, null, false);
 
 	// for migrations
 	addMigrations(output, id);
 
 	// Add times
-	addTimes(output, id, ['r', 'yb', 'lw', 'sys']);
+	addTimes(output, id, ['r', 'yb', 'lw', 'i', 'sys']);
 	addCoreTimes(output, id, ['r', 'uu']);
 
 	// Add locks
@@ -538,6 +737,9 @@ function jsonDL(profile, id) {
 	// Common
 	profile.exportInfo(output);
 	addCommon(output, id);
+	
+	// Add raw data for visualisation
+	addRawData(output, id, [], null, null, null, null, null, true);
 
 	// Data
 	addLocality(output, id, false);
@@ -560,6 +762,15 @@ function jsonRS(profile, id) {
 	// Common
 	profile.exportInfo(output);
 	addCommon(output, id);
+	
+	// Add raw data for visualisation
+	addRawData(output, id, ['lf', 'ls'], null, ['lf', 'ls'], null, null, null, true);
+
+	// Add locks
+	addLocks(output, id);
+	
+	// Data locality
+	addLocality(output, id, false);
 
 	return output;
 }

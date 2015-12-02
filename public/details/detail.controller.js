@@ -1,3 +1,5 @@
+/* global angular */
+
 app.controller('DetailController', ['$scope', '$rootScope', '$window', '$stateParams', '$http', 'selectedProfiles', 'categories', 'widgets', function($scope, $rootScope, $window, $stateParams, $http, selectedProfiles, categories, widgets) {
 	/************************************************/
 	/* Constructor - Init							*/
@@ -64,6 +66,7 @@ app.controller('DetailController', ['$scope', '$rootScope', '$window', '$statePa
 		//
 		profiles.forEach(function(profile) {
 			profile.currentData = profile.data[tag];
+			profile.raw = profile.data[tag].raw;
 		});
 		
 		
@@ -106,21 +109,6 @@ app.controller('DetailController', ['$scope', '$rootScope', '$window', '$statePa
 	 */
 	function isWaiting() {
 		return waiting;
-	};
-
-	/**
-	 * Mouse - over
-	 */
-	function mouseOver(event, r) {
-		var x = event.clientX - r.container.getBoundingClientRect().x - r.layout.profile.x;
-		$scope.$broadcast('xEvent', (x < 0 || x > r.layout.profile.width) ? NaN : x);
-	};
-
-	/**
-	 * Mouse - leave
-	 */
-	function mouseLeave(event) {
-		$scope.$broadcast('xEvent', NaN);
 	};
 	
 	/**
@@ -185,53 +173,257 @@ app.controller('DetailController', ['$scope', '$rootScope', '$window', '$statePa
 	/************************************************/
 	/* Generator - Stats							*/
 	/************************************************/
+	var statsIndex = 0;
+	var statsCache = [];
 	function createStats(widget) {
-		// Prerequite (to remove when finished)
-		if (! widget.deck || ! widget.deck.data)
-			return (profiles.length == 1) ? { values: [[0]], sums: [0], maxSum: 0 } : { values: [[0], [0]], sums: [0, 0], maxSum: 0 };
+		var stats = {
+			version: 0,
+			//time: widget.deck.data.timeHandling,
+			step: widget.settings.timeGroup,
+			table: document.getElementsByClassName('table-legend')[statsIndex],
+			tableLabel: null, // document.getElementsByClassName('table-legend-label')[statsIndex]
+			deck: Array.isArray(widget.deck.data) ? widget.deck.data : widget.deck.data.stats,
+			focusable: isStatHandleFocus(widget.deck.data.timeHandling),
+			focusLabel: 'under cursor',
+			mode: $scope.statMode,
+			valuesMax: [],
+			values1: [[], []],
+			values2: [[], []],
+			valuesStack: [[], []]
+		};
 		
-		var sums = (profiles.length == 1) ? [0] : [0, 0];
-		var values = (profiles.length == 1) ? [[]] : [[], []];
+		// Save cache
+		statsCache.push(stats);
+		widget.stats = stats;
+		statsIndex++;
 		
-		var value;
-		profiles.forEach(function(profile, index) {
-			widget.deck.data.forEach(function(facet) {
-				value = Math.round(profile.currentData.stats[facet.cat][facet.attr]);
-				values[index].push({
-					previous: sums[index],
-					value: value,
-					label1: (facet.unity) ? value + '\u00A0' + facet.unity : value
-				});
-				sums[index] += value;
-			});
-		});
+		// Update stat values
+		updateStats(stats);
 		
-		if (widget.deck.data.length == 1) {
-			for (var p = 0; p < profiles.length; p++) {
-				values[p][0].label2 = '<todo>';
+		return stats;
+	}
+
+	function updateStats(stats, positions) {
+		// Stats mode (is stats or is focus)
+		var isStats = ! positions || positions.isOut;
+		
+		// Compute data
+		var facet, value1, value2, maxValue, profile;
+		for (var index = 0; index < profiles.length; index++) {
+			maxValue = 0;
+			profile = profiles[index];
+			stats.valuesStack[index][0] = 0;
+			for (var f = 0; f < stats.deck.length; f++) {
+				facet = stats.deck[f];
+				// Values
+				value1 = (isStats) ? profile.raw.stats[facet.attr] : (profile.raw.amount[positions.i50]) ? profile.raw.amount[positions.i50][facet.attr] : null;
+				value2 = (isStats) ? profile.raw.statsPercent[facet.attr] : (profile.raw.amountPercent[positions.i50]) ? profile.raw.amountPercent[positions.i50][facet.attr] : null;
+				stats.values1[index][f] = (value1 != undefined) ? (facet.unity) ? value1 + '\u00A0' + facet.unity : value1 : null;
+				stats.values2[index][f] = (value2 != undefined) ? value2 + '\u00A0%' : null;
+				// From TO
+				maxValue += value1;
+				stats.valuesStack[index][f + 1] = maxValue;
+			}
+			stats.valuesMax[index] = maxValue;
+		}
+		
+		stats.version++;
+		//console.log(stats);
+	}
+	
+	function isStatHandleFocus(mode) {
+		return mode == 'default';
+	}
+	
+	
+	/************************************************/
+	/* Functions - Focus on mouse					*/
+	/************************************************/
+	/**
+	 * Document - init focus
+	 */
+	function initRuler() {
+		$scope.ruler = document.getElementById('ruler');
+		$scope.aRuler = angular.element($scope.ruler);
+		$scope.stamps = $scope.ruler.querySelectorAll('.label');
+		
+		var pl = profiles.length;
+		categories[tag].widgets.forEach(function(widget, iw) {
+			if (widget.deck && widget.deck.focus) {
+				widget.deck.focus.forEach(function(facet) {
+					$scope.rules.push({ id: 'rule-' + iw + '-0-' + facet.attr, f: facet });
+					if (pl > 1) $scope.rules.push({ id: 'rule-' + iw + '-1-' + facet.attr, f: facet });
+				}, this);
+			}
+		}, this);
+    };
+	
+	/**
+	 * Mouse - over
+	 */
+	function mouseOver(event, r) {
+		var x = event.clientX - r.container.getBoundingClientRect().x - r.layout.profile.x;
+		var maxX = r.layout.profile.width;
+		focusHandle((x < 0 || x > maxX) ? NaN : x, event.clientX, maxX);
+	};
+
+	/**
+	 * Mouse - leave
+	 */
+	function mouseLeave(event) {
+		focusHandle(NaN);
+	};
+
+	/**
+	 * Focus - init pins (labels)
+	 */
+	//var tmpid = 1;
+	function focusInitPins(valuedPins) {
+		$scope.valuedPins.push.apply($scope.valuedPins, valuedPins);
+	}
+
+	/**
+	 * Focus - move pin (labels)
+	 */
+	var pinElements = {};
+	var pinValueElements = {};
+	function focusMovePin(id, y, v) {
+		// Create cache runtime
+		if ('undefined' === typeof pinElements[id]) {
+			pinElements[id] = document.getElementById(id);
+			if (pinElements[id]) {
+				if (pinElements[id].querySelectorAll('.pin-value').length > 0)
+					pinValueElements[id] = pinElements[id].querySelectorAll('.pin-value')[0];
+			}
+		}
+		// Move (or hide) pin
+		if (isNaN(y)) {
+			if (pinElements[id]) pinElements[id].style.opacity = 0;
+		} else {
+			if (y && pinElements[id]) {
+				pinElements[id].style.opacity = 1;
+				pinElements[id].style.top = y + 'px';
+			}
+			if (v && pinValueElements[id])	pinValueElements[id].innerHTML = v;
+		}
+	}
+
+	/**
+	 * Focus - global handle
+	 */
+	//var legendTableList;
+	function focusHandle(relativeX, x, maxX) {
+		var positions = { isOut: isNaN(relativeX) };
+		var stats;
+		var needToUpdateStats;
+		
+		// Check new state
+		// NO CHANGE: always on stats mode
+		if ((! $scope.focusPosition || $scope.focusPosition.isOut) && positions.isOut) {
+			return;
+		}
+		// NEW MODE: stats
+		else if (positions.isOut) {
+			// Hide Focus ruler
+			//console.log('new focusT', 'stats mode');
+			$scope.ruler.style.display = 'none';
+			
+			// Update stats
+			for (var s = 0; s < statsCache.length; s++) {
+				stats = statsCache[s];
+				if (stats.focusable) {
+					stats.table.classList.remove('table-focus');
+					updateStats(stats, positions);
+				}
+			}
+				
+		}
+		// NEW MODE: focus
+		else {
+			//console.log('new focusT', 'focus', relativeX);
+			needToUpdateStats = ! $scope.focusPosition;
+			
+			// Compute position
+			positions.x = relativeX;
+			positions.t = Math.round(relativeX * ($scope.selection.end - $scope.selection.begin) / maxX + $scope.selection.begin);
+			
+			// Update Focus ruler
+			$scope.ruler.style.display = 'initial';
+			$scope.ruler.style.left = x + 'px';
+			$scope.stamps[0].innerHTML = positions.t + ' ms';
+			$scope.stamps[1].innerHTML = positions.t + ' ms';
+			
+			// Compute position - Step time of profiles
+			addStepPosition(positions, 50);
+			needToUpdateStats = needToUpdateStats || positions.i50 != $scope.focusPosition.i50;
+			
+			// Compute position - Step time specific (by settings)
+			for (var s = 0; s < statsCache.length; s++) {
+				if (statsCache[s].step) {
+					addStepPosition(positions, statsCache[s].step);
+					needToUpdateStats = needToUpdateStats || positions['i' + statsCache[s].step] != $scope.focusPosition['i' + statsCache[s].step];
+				}
 			}
 			
-		} else {
-			for (var p = 0; p < profiles.length; p++) {
-				for (var f = 0; f < widget.deck.data.length; f++) {
-					values[p][f].label2 = Math.round(100 * values[p][f].value / sums[p]) + '\u00A0%';
+			// Update stats
+			if (needToUpdateStats) {
+				for (var s = 0; s < statsCache.length; s++) {
+					stats = statsCache[s];
+					if (stats.focusable) {
+						stats.table.classList.add('table-focus');
+						updateStats(stats, positions);
+					}
 				}
 			}
 		}
 		
-		return {
-			mode: $scope.statMode,
-			values: values,
-			sums: sums,
-			maxSum: Math.max.apply(this, sums)
+		// Post treatment (common to all states)
+		$scope.hasFocus = ! positions.isOut;
+		$scope.focusPosition = positions;
+		$scope.$broadcast('xEvent', positions);
+		
+		// Launch events to update UI
+		$scope.$apply();
+	}
+	
+	function addStepPosition(positions, step) {
+		if (positions.isOut) {
+			positions['i' + step] = null;
+			positions['f' + step] = null;
+		} else if (! positions['i' + step]) {
+			positions['i' + step] = Math.floor(positions.t / step);
+			positions['f' + step] = Math.floor(positions.t / step) * step;
 		}
 	}
 
+	/**
+	 * Focus - rules handle
+	 */
+	var ruleElements = {};
+	var ruleValueElements = {};
+	function focusRuleHandle(id, y, v) {
+		if ('undefined' === typeof ruleElements[id]) {
+			ruleElements[id] = document.getElementById(id);
+			if (ruleElements[id]) {
+				ruleValueElements[id] = ruleElements[id].querySelectorAll('.rule-value')[0];
+			}
+		}
+		if (isNaN(y)) {
+			if (ruleElements[id])		ruleElements[id].style.opacity = 0;
+		} else {
+			if (ruleElements[id]) {
+				ruleElements[id].style.top = y + 'px';
+				ruleElements[id].style.opacity = 1;
+			}
+			if (ruleValueElements[id])	ruleValueElements[id].innerHTML = v;
+		}
+	};
 
 	
 	/************************************************/
 	/* Scope - post treatment						*/
 	/************************************************/
+	
 	/**
 	 * Global binds
 	 */
@@ -260,4 +452,15 @@ app.controller('DetailController', ['$scope', '$rootScope', '$window', '$statePa
 	$scope.createStats = createStats;
 	$scope.axisList = []; // poputaled in postReceiption()
 	$scope.statMode = 'units';
+	$scope.initRuler = initRuler;
+	$scope.rules = []; // poputaled in initRuler()
+	$scope.valuedPins = []; // poputaled in focusInitPins()
+	//$scope.focusRulesHandle = focusRulesHandle;
+	$scope.hasFocus = false;						// updated by focusHandle
+	$scope.focusPosition = null;					// updated by focusHandle
+//	$scope.focusX = null;							// updated by focusHandle
+//	$scope.focusT = null;							// updated by focusHandle
+	$scope.focusRuleHandle = focusRuleHandle;
+	$scope.focusInitPins = focusInitPins;
+	$scope.focusMovePin = focusMovePin;
 }]);

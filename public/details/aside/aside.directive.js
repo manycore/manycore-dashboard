@@ -72,7 +72,7 @@ app.directive('chartStats', function() {
 		// Attributes
 		var stats = scope.stats;
 		var profiles = scope.profiles;
-		var deck = scope.widget.deck.data;
+		var deck = scope.stats.deck;
 		
 		// Compute layout
 		layout.refresh(deck, profiles);
@@ -85,42 +85,51 @@ app.directive('chartStats', function() {
 			.attr({width: layout.width, height: layout.height})
 			.attr('class', "svg-stats");
 			
-		// Groups
-		var groupS = [];
-		groupS.push(svg.append("g")
-			.attr('class', "svg-stack svg-profile-1"));
-		if (profiles.length == 2)
-			groupS.push(svg.append("g")
-				.attr('class', "svg-stack svg-profile-2")
-				.attr("transform", "translate(" + (layout.stacks.width + layout.stacks.padding) + ", 0)"));
+		// Draw template
+		var group;
+		var shapes = [[], []];
+		for (var index = 0; index < profiles.length; index++) {
+			// Add group
+			if (index == 0)
+				group = svg.append("g")
+					.attr('class', "svg-stack svg-profile-1");
+			else
+				group = svg.append("g")
+					.attr('class', "svg-stack svg-profile-2")
+					.attr("transform", "translate(" + (layout.stacks.width + layout.stacks.padding) + ", 0)");
+			
+			// Draw
+			for (var f = 0; f < deck.length; f++) {
+				shapes[index].push(group.append("rect")
+					.attr("width", layout.stacks.width)
+					.attr("x", 0)
+					.style("fill", deck[f].color));
+			}
+		}
 
 		// Paint
 		function repaint() {
-			var yValue, yPrevious, maxValue;
+			console.log("refesh stats");
+			
+			var maxValue, yFrom, yTo;
 			for (var index = 0; index < profiles.length; index++) {
-				// Clean
-				groupS[index].selectAll('*').remove();
+				// Data
+				maxValue =  (stats.mode == 'units') ? Math.max.apply(null, stats.valuesMax) : stats.valuesMax[index];
 				
-				// Top
-				maxValue = (stats.mode == 'units') ? stats.maxSum : stats.sums[index]; 
-				
-				// Draw rectanges
-				stats.values[index].forEach(function(element, i) {
-					yValue = layout.height * element.value / maxValue;
-					yPrevious = layout.height * element.previous / maxValue;
-					if (yValue >= 1) groupS[index].append("rect")
-						.attr("width", layout.stacks.width)
-						.attr("x", 0)
-						.attr("y", layout.height - yPrevious - yValue)
-						.attr("height", yValue)
-						.style("fill", deck[i].color)
-				}, this);
+				// Refresh shape parameters
+				for (var f = 0; f < deck.length; f++) {
+					yFrom = layout.height * stats.valuesStack[index][f] / maxValue || 0;
+					yTo = layout.height * stats.valuesStack[index][f + 1] / maxValue || 0;
+					shapes[index][f]
+						.attr("y", yFrom)
+						.attr("height", yTo - yFrom)
+				}
 			}
 		}
 		
 		// Bind
 		// (call the first repaint instance)
-		scope.$watch(function() { return stats.mode; }, repaint);
+		scope.$watch(function() { return stats.version + .1 * ((stats.mode == 'units') ? 1 : 2); }, repaint);
 	};
 
 
@@ -162,7 +171,7 @@ app.directive('facetList', [function() {
 					itemID = 'l' + listID + 's' + i1 + 'i' + i2;
 					provider.push({
 						i: itemID,
-						t: ('t' in item) ? item.t : ('f' in item) ? item.f.title : '',
+						t: ('t' in item) ? item.t : ('f' in item) ? item.f.label : '',
 						d: ('d' in item) ? item.d : ('f' in item) ? item.f.desc : ''
 					});
 					styles += '#' + itemID + ':before {' +

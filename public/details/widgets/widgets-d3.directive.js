@@ -109,8 +109,7 @@ function d3_directive_init(scope, element, attrs, layoutVars) {
 	var profiles =	scope.profiles;
 
 	// Canvas
-	var svg =		d3.select(container).append('svg')
-						.attr('class', 'svg-d3');
+	var svg =		d3.select(container).append('svg').attr('class', 'svg-d3');
 
 	// Overflow
 	var overflow =	svg.append('g')
@@ -287,7 +286,7 @@ app.directive('chartPcoords', function() {
 		
 		// Color scales
 		var colorScale_thread = d3.scale.category20();
-		var colorScale_locality = d3.scale.linear().range(['#8DD28A', '#D2AB8A', '#000000']);
+		var colorScale_locality = d3.scale.linear().range([r.deck.c_scale[0], r.deck.c_scale[1], r.deck.c_scale[0]]);
 		
 		// Build internal data
 		r.iData = [];

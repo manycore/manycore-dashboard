@@ -58,7 +58,7 @@ var graphLayout = function(favoriteHeight) {
 /**
  * Meta (parameters)
  */
-var graphMeta = function(scope, attributes, mirror, canOverflow, params, properties) {
+var graphMeta = function(scope, attributes, mirror, canOverflow, params, settings) {
 	// Allow seld reference (otherwise this is the caller object)
 	var self = this;
 
@@ -92,9 +92,8 @@ var graphMeta = function(scope, attributes, mirror, canOverflow, params, propert
 		});
 	
 	// On demand - settings
-	properties.forEach(function(a) {
-		if (attributes.hasOwnProperty(a))
-			try { self[a] = JSON.parse(attributes[a]) } catch(e) { self[a] = attributes[a] };
+	settings.forEach(function(setting) {
+		self[setting.property] = setting.value;
 	});
 
 
@@ -130,15 +129,17 @@ function directive_init(scope, element, attrs, layoutType, mirror, canOverflow) 
 	var container =	element[0];
 	var layout =	new graphLayout(layoutType);
 	
-	// Properties
-	var properties = [];
-	if (scope.widget.deck.settings) scope.widget.deck.settings.forEach(function(setting) {
-		properties.push(setting.property);
-	});
-
 	// Attributes
 	var deck =		scope.widget.deck.graph;
-	var meta =		new graphMeta(scope, attrs, mirror, canOverflow, scope.widget.deck.params, properties);
+	var meta =		new graphMeta(scope, attrs, mirror, canOverflow, scope.widget.deck.params, scope.widget.deck.settings);
+	
+	// Plans modes
+	var plan;
+	if (scope.widget.deck.plans) {
+		meta.plan = 0;
+		plan = scope.widget.deck.plans[0];
+		if (plan.property) meta[plan.property] = true;
+	}
 	
 	// Widget
 	meta.widget =	{ index: scope.iw };
@@ -147,7 +148,7 @@ function directive_init(scope, element, attrs, layoutType, mirror, canOverflow) 
 	var profiles =	scope.profiles;
 
 	// Canvas
-	var svg =		d3.select(container).append('svg');
+	var svg =		d3.select(container).append('svg').attr('class', 'svg-charts');
 
 	// Scales
 	var scaleX =	d3.scale.linear();
@@ -169,8 +170,10 @@ function directive_init(scope, element, attrs, layoutType, mirror, canOverflow) 
 		container:	container,
 		layout:		layout,
 		deck:		deck,
+		data:		scope.widget.data,
+		plans:		scope.widget.deck.plans,
+		plan:		plan,
 		settings:	scope.widget.settings,
-		properties:	properties,
 		meta:		meta,
 		profiles:	profiles,
 		svg:		svg,
@@ -188,7 +191,7 @@ function directive_init(scope, element, attrs, layoutType, mirror, canOverflow) 
 /**
  * Focus - init
  */
-function directive_focus_init(r, repeater) {
+/*function directive_focus_init(r, repeater) {
 	var prefix;
 	var valuedPins = [];
 	
@@ -198,13 +201,13 @@ function directive_focus_init(r, repeater) {
 		prefix = 'pin-' + r.meta.widget.index + '-' + index + '-';
 		
 		// for melody
-		if (r.deck.melody) {
+		if (r.deck.melody_c) {
 			// Repeat
 			for (var l = 0; l < repeater[index]; l++) {
 				valuedPins.push({
-					id: prefix + 'melody-' + l,
-					l: (l == 0) ? r.deck.melody.label : '',
-					f: r.deck.melody
+					id: prefix + 'c-' + l,
+					l: (l == 0) ? r.deck.melody_c.label : '',
+					f: r.deck.melody_c
 				})
 			}
 		}
@@ -214,7 +217,7 @@ function directive_focus_init(r, repeater) {
 	
 	// Push pins
 	r.scope.focusInitPins(valuedPins);
-}
+}*/
 
 
 /**
@@ -312,14 +315,21 @@ function directive_bind(scope, element, r, repaint, select, addWidgetY) {
 	// Properties
 	scope.$watch(function() { return r.settings.version; }, function() {
 		var needToRepaint = false;
-
-		r.properties.forEach(function(property) {
-			if (r.meta[property] != r.settings[property]) {
+		
+		var property = r.settings.lastChangeProperty;
+		
+		if (r.meta[property] != r.settings[property]) {
+			if (property == 'plan') {
+				if (r.plan && r.plan.property) r.meta[r.plan.property] = false;
+				r.meta.plan = r.settings.plan;
+				r.plan = r.plans[r.settings.plan];
+				if (r.plan && r.plan.property) r.meta[r.plan.property] = true;
+			} else {
 				r.meta[property] = r.settings[property];
-				needToRepaint = true;
 			}
-		});
-
+			needToRepaint = true;
+		}
+		
 		if (needToRepaint)
 			repaint();
 	});
@@ -726,18 +736,18 @@ app.directive('chartPercent', function() {
 			
 			if (t >= r.meta.ends[index] || ! r.profiles[index].currentData.percent[t][facet.attr]) {
 				// Send disable to controller
-				r.scope.focusRuleHandle(prefixID + facet.attr, NaN, NaN);
+				r.scope.focusRuleHandle(prefixID + facet.attr, NaN, NaN, NaN);
 				
 			} else {
 				
 				var value = r.profiles[index].currentData[facet.cat][t][facet.attr];
-				if (facet.unity) value += ' ' + facet.unity;
 				
 				// Send new coordinates to controller
 				r.scope.focusRuleHandle(
 					prefixID + facet.attr,
 					y0 + (r.iData[index][v + 1][tIndex * 4 + 1] + r.iData[index][v][tIndex * 4 + 1]) / 2 + r.layout.profile.y[index] + r.meta.vOverflow[0],
-					value);
+					value,
+					(facet.unity) ? value + ' ' + facet.unity : value);
 			}
 		}
 
@@ -762,14 +772,21 @@ app.directive('chartUnits', function() {
 		console.log("== directive == chartUnits ==");
 
 		// Init vars
-		var r = directive_init(scope, element, attrs, LAYOUT_FH_BAND, true, true);
+		var r = directive_init(scope, element, attrs, LAYOUT_FH_BAND, true, true, true);
 
 		// Axis label
 		function vAxisLabel(v, index) {
-			if (v == r.meta.vExpected[index])
-				return r.deck.limitLabel;
-			else
-				return Math.round(v / r.meta.vExpected[index]) + '×';
+			if (r.meta.useLogScale) {
+				if (v == 1)
+					return r.deck.limitLabel;
+				else
+					return Math.pow(2, v - 1) + '×';
+			} else {
+				if (v == r.meta.vExpected[index])
+					return r.deck.limitLabel;
+				else
+					return Math.round(v / r.meta.vExpected[index]) + '×';
+			}
 		}
 
 		// Redraw
@@ -778,24 +795,36 @@ app.directive('chartUnits', function() {
 			directive_repaint_container(r);
 			
 			// Enhance meta
-			r.meta.vExpected[0] =	r.deck.expected(r.profiles[0], r.settings.timeGroup);
-			r.meta.vMinDisplay[0] =	r.deck.displayed(r.profiles[0], r.settings.timeGroup);
-			r.meta.vStep[0] =		r.deck.vStep(r.profiles[0], r.settings.timeGroup);
-			if (r.profiles[1] != null) {
-				r.meta.vExpected[1] =	r.deck.expected(r.profiles[1], r.settings.timeGroup);
-				r.meta.vMinDisplay[1] =	r.deck.displayed(r.profiles[1], r.settings.timeGroup);
-				r.meta.vStep[1] =		r.deck.vStep(r.profiles[1], r.settings.timeGroup);
+			r.meta.vCalibration = [];
+			r.meta.vExpected = [];
+			r.meta.vMinDisplay = [];
+			r.meta.vStep = [];
+			
+			// Compute expected data (calibration times time-frame)
+			if (r.meta.useLogScale) {
+				r.meta.calibration.forEach(function(calibration) {
+					r.meta.vCalibration.push(calibration * r.meta.timeGroup);
+					r.meta.vExpected.push(1);
+					r.meta.vMinDisplay.push(2);
+					r.meta.vStep.push(1);
+				});
+			} else {
+				r.meta.calibration.forEach(function(calibration) {
+					r.meta.vExpected.push(calibration * r.meta.timeGroup);
+					r.meta.vMinDisplay.push(2 * calibration * r.meta.timeGroup);
+					r.meta.vStep.push(calibration * r.meta.timeGroup);
+				});
 			}
-			r.meta.countedUnits = [[], []];
+			
 
 			// Repaint scales
-			directive_repaint_scales(r, [0, r.meta.vMinDisplay[0]], [0, r.meta.vMinDisplay[1]]);
+			directive_repaint_scales(r, [0, r.meta.vMinDisplay[0]], [0, r.meta.vMinDisplay[1]], r.meta.vExpected);
 
 			// Repaint graphical elements
 			directive_repaint_xAxis(r);
 
 			// Main draw
-			var profileData, yPositions, yScaledPosition;
+			var profileData, yPositions, yLogPosition, yScaledPosition;
 			var tID, scaleVZero;
 			var tStep = r.settings.timeGroup;
 			var dataSource_list, dataSource_length, dataSource_index;
@@ -818,7 +847,6 @@ app.directive('chartUnits', function() {
 					dataSource_index.push(0);
 					yPositions.push(NaN);
 					r.iData[index].push([]);
-					r.meta.countedUnits[index].push([]);
 				};
 
 				// All - points - data
@@ -834,15 +862,23 @@ app.directive('chartUnits', function() {
 							yPositions[v]++;
 							dataSource_index[v]++;
 						}
-						
-						// Save counted units
-						r.meta.countedUnits[index][v].push(yPositions[v]);
 
 						// Stack positions
 						if (v > 0)
 							yPositions[v] += yPositions[v-1];
-
-						yScaledPosition = r.scalesV[index](yPositions[v]);
+						
+						// "log" scale
+						if (r.meta.useLogScale) {
+							yLogPosition = yPositions[v] / r.meta.vCalibration[index]; // how much times
+							if (yLogPosition > 1)
+								yLogPosition = 1 + Math.log2(yLogPosition); // log base 2
+							
+							yScaledPosition = r.scalesV[index](yLogPosition);
+						}
+						// Linear scale
+						else {
+							yScaledPosition = r.scalesV[index](yPositions[v]);
+						}
 
 						// Add points to shape (x, y, x, y)
 						//	=> twice for the boxing effect
@@ -920,18 +956,18 @@ app.directive('chartUnits', function() {
 			
 			if (tIndex >= r.meta.ends[index] / r.settings.timeGroup) {
 				// Send disable to controller
-				r.scope.focusRuleHandle(prefixID + facet.attr, NaN, NaN);
+				r.scope.focusRuleHandle(prefixID + facet.attr, NaN, NaN, NaN);
 				
 			} else {
 				
-				var value = r.meta.countedUnits[index][v][tIndex];
-				if (facet.unity) value += ' ' + facet.unity;
+				var value = r.data[index].hasOwnProperty(tIndex) ? r.data[index][tIndex][r.deck.v[v].attr] || 0 : 0;
 				
 				// Send new coordinates to controller
 				r.scope.focusRuleHandle(
 					prefixID + facet.attr,
 					y0 + (r.iData[index][v + 1][tIndex * 4 + 1] + r.iData[index][v][tIndex * 4 + 1]) / 2 + r.layout.profile.y[index] + r.meta.vOverflow[0],
-					value);
+					value,
+					(facet.unity) ? value + ' ' + facet.unity : value);
 			}
 		}
 
@@ -1145,7 +1181,7 @@ app.directive('chartThreads', function() {
 					
 					// Draw periods
 					var x1Period, x2Period;
-					if (r.deck.periods && ! r.meta.disablePeriods) {
+					if (r.deck.periods && (!! r.meta.enablePeriods || (r.meta.hasOwnProperty('disablePeriods') && ! r.meta.disablePeriods))) {
 						var periodsData = profile.currentData.threads.periods;
 						r.deck.periods.forEach(function(deck) {
 							if (periodsData[thread.h] && periodsData[thread.h][deck.attr]) {
@@ -1159,7 +1195,7 @@ app.directive('chartThreads', function() {
 											.attr('y', threadY - r.meta.period_Height / 2)
 											.attr("width", x2Period - x1Period)
 											.attr("height", r.meta.period_Height)
-											.attr('fill', (p.hasOwnProperty('c')) ? deck.colors[p.c] : deck.fcolor);
+											.attr('fill', (p.hasOwnProperty('c')) ? r.deck.c_periods[p.c] : deck.colours.n);
 									}
 								});
 							}
@@ -1202,7 +1238,7 @@ app.directive('chartThreads', function() {
 					}
 					
 					// Draw ticks
-					if (r.deck.ticks && ! r.meta.disableTicks) {
+					if (r.deck.ticks && (!! r.meta.enableTicks || (r.meta.hasOwnProperty('disableTicks') && ! r.meta.disableTicks))) {
 						var ticksData = profile.currentData.threads.ticks[thread.h];
 						var lastTick;
 						r.deck.ticks.forEach(function(deck) {
@@ -1266,8 +1302,8 @@ app.directive('chartLines', function() {
 		
 		// lines
 		r.meta.lines = [
-											 (r.meta.hackLineProvider) ? r.deck.linesHack(r.profiles[0]) : r.deck.lines(r.profiles[0]),
-			(r.profiles.length < 2) ? null : (r.meta.hackLineProvider) ? r.deck.linesHack(r.profiles[1]) : r.deck.lines(r.profiles[1])
+											 r.deck.lines(r.profiles[0]),
+			(r.profiles.length < 2) ? null : r.deck.lines(r.profiles[1])
 		];
 		r.meta.linesLength = [
 			(r.meta.lines[0]) ? r.meta.lines[0].length : 0,
@@ -1275,7 +1311,7 @@ app.directive('chartLines', function() {
 		];
 		
 		// Init focus pins
-		directive_focus_init(r, r.meta.linesLength);
+		//directive_focus_init(r, r.meta.linesLength);
 		
 		// Init internal data
 		r.iData = {};
@@ -1293,12 +1329,13 @@ app.directive('chartLines', function() {
 			directive_repaint_xAxis(r);
 			
 			// Clean
-			if (r.deck.melody) r.iData.melody = [[], []];
+			if (r.deck.melody_c) r.iData.melody = [[], []];
 
 			// Main draw
 			var profileData;
-			var groupHeight, lineY;
+			var groupHeight, lineY, lineGroup, elementClasses;
 			var delta;
+			var lineCenter = r.meta.lineHeight / 2
 			r.profiles.forEach(function(profile, index) {
 				// Clean
 				r.groupP[index].selectAll('*').remove();
@@ -1365,27 +1402,37 @@ app.directive('chartLines', function() {
 					
 					// Position
 					lineY = (index == 0) ? (line_index + .5) * r.meta.lineHeight - groupHeight : (line_index + .5) * r.meta.lineHeight;
+					
+					// Group
+					lineGroup = r.groupP[index].append("g")
+						.attr('transform', 'translate(0,' + ((index == 0) ? line_index * r.meta.lineHeight - groupHeight : line_index * r.meta.lineHeight) + ')')
+						.attr('class', 'svg-group');
+					
+					// Save line parameters
 					line.y = lineY;
+					line.g = lineGroup;
 					
 					// Draw basic core
 					if (! r.meta.disableLine)
-						r.groupP[index].append('line')
+						lineGroup.append('line')
 							.attr('class', "svg-data svg-data-line")
 							.attr('x1', r.scaleX(line.s))
 							.attr('x2', r.scaleX(line.e))
-							.attr('y1', lineY).attr('y2', lineY)
+							.attr('y1', lineCenter).attr('y2', lineCenter)
 							.attr('stroke', r.deck.h.color)
 							.attr('stroke-width', 1);
 					
-					// Draw melody
-					if (r.deck.melody && ! r.meta.disableMelody) {
+					// Draw melody core
+					if (r.deck.melody_c && ! r.meta.disableMelody) {
 						// Compute points
 						var points = [[], []];
 						var timeStep = profileData.info.timeStep;
+						var frameIndex;
 						for (var frameID = r.meta.begin; frameID < r.meta.ends[index]; frameID += timeStep) {
-							delta = profileData[r.deck.melody_cat][line.id][frameID][r.deck.melody.attr] * r.meta.melodyHeight / 2 / timeStep;
-							points[0].push.apply(points[0], [r.scaleX(frameID), lineY + delta, r.scaleX(frameID + timeStep), lineY + delta]);
-							points[1].push.apply(points[1], [r.scaleX(frameID), lineY - delta, r.scaleX(frameID + timeStep), lineY - delta]);
+							frameIndex = frameID / timeStep;
+							delta = profileData.raw.amount[frameIndex][r.deck.melody_c.attr + '_c' + line.id] * r.meta.melodyHeight / 2 / timeStep;
+							points[0].push.apply(points[0], [r.scaleX(frameID), lineCenter + delta, r.scaleX(frameID + timeStep), lineCenter + delta]);
+							points[1].push.apply(points[1], [r.scaleX(frameID), lineCenter - delta, r.scaleX(frameID + timeStep), lineCenter - delta]);
 						}
 						
 						// Save melody data
@@ -1393,17 +1440,17 @@ app.directive('chartLines', function() {
 						
 						// Draw melody (if necessary)
 						if (! r.meta.disableMelody)
-							r.groupP[index].append("polygon")
+							lineGroup.append("polygon")
 								.attr('class', 'svg-data svg-data-melody')
 								.attr("points", p2s(points[0], points[1]))
-								.attr('fill', r.deck.melody.color);
+								.attr('fill', r.deck.melody_c.colours.n);
 					}
 					
 					// Draw sequences
 					if (r.deck.sequences && ! r.meta.disableSequenceDashs) {
 						var seqData = profileData.events.q;
-						var cPoints = [[r.scaleX(r.meta.begin), lineY], [r.scaleX(r.meta.begin), lineY]];
-						var uPoints = [[r.scaleX(r.meta.begin), lineY], [r.scaleX(r.meta.begin), lineY]];
+						var cPoints = [[r.scaleX(r.meta.begin), lineCenter], [r.scaleX(r.meta.begin), lineCenter]];
+						var uPoints = [[r.scaleX(r.meta.begin), lineCenter], [r.scaleX(r.meta.begin), lineCenter]];
 						var cUseDelta = false;
 						var uUseDelta = false;
 						delta = 3;
@@ -1413,28 +1460,28 @@ app.directive('chartLines', function() {
 								// Count
 								if ((index == 0 && r.meta.linesLength[index] - line_index - 1 < seqData[t]) || (index == 1 && line_index < seqData[t])) {
 									if (! cUseDelta) {
-										cPoints[0].push.apply(cPoints[0], [r.scaleX(t), lineY, r.scaleX(t), lineY + delta]);
-										cPoints[1].push.apply(cPoints[1], [r.scaleX(t), lineY, r.scaleX(t), lineY - delta]);
+										cPoints[0].push.apply(cPoints[0], [r.scaleX(t), lineCenter, r.scaleX(t), lineCenter + delta]);
+										cPoints[1].push.apply(cPoints[1], [r.scaleX(t), lineCenter, r.scaleX(t), lineCenter - delta]);
 										cUseDelta = true;
 									}
 								} else {
 									if (cUseDelta) {
-										cPoints[0].push.apply(cPoints[0], [r.scaleX(t), lineY + delta, r.scaleX(t), lineY]);
-										cPoints[1].push.apply(cPoints[1], [r.scaleX(t), lineY - delta, r.scaleX(t), lineY]);
+										cPoints[0].push.apply(cPoints[0], [r.scaleX(t), lineCenter + delta, r.scaleX(t), lineCenter]);
+										cPoints[1].push.apply(cPoints[1], [r.scaleX(t), lineCenter - delta, r.scaleX(t), lineCenter]);
 										cUseDelta = false;
 									}
 								}
 								// Under
 								if (seqData[t] <= r.meta.sequenceThreshold && ((index == 0 && r.meta.linesLength[index] - line_index - 1 < seqData[t]) || (index == 1 && line_index < seqData[t]))) {
 									if (! uUseDelta) {
-										uPoints[0].push.apply(uPoints[0], [r.scaleX(t), lineY, r.scaleX(t), lineY + delta]);
-										uPoints[1].push.apply(uPoints[1], [r.scaleX(t), lineY, r.scaleX(t), lineY - delta]);
+										uPoints[0].push.apply(uPoints[0], [r.scaleX(t), lineCenter, r.scaleX(t), lineCenter + delta]);
+										uPoints[1].push.apply(uPoints[1], [r.scaleX(t), lineCenter, r.scaleX(t), lineCenter - delta]);
 										uUseDelta = true;
 									}
 								} else {
 									if (uUseDelta) {
-										uPoints[0].push.apply(uPoints[0], [r.scaleX(t), lineY + delta, r.scaleX(t), lineY]);
-										uPoints[1].push.apply(uPoints[1], [r.scaleX(t), lineY - delta, r.scaleX(t), lineY]);
+										uPoints[0].push.apply(uPoints[0], [r.scaleX(t), lineCenter + delta, r.scaleX(t), lineCenter]);
+										uPoints[1].push.apply(uPoints[1], [r.scaleX(t), lineCenter - delta, r.scaleX(t), lineCenter]);
 										uUseDelta = false;
 									}
 								}
@@ -1442,23 +1489,23 @@ app.directive('chartLines', function() {
 						}
 						
 						if (cUseDelta) {
-							cPoints[0].push.apply(cPoints[0], [cPoints[0][cPoints[0].length - 2], lineY]);
-							cPoints[1].push.apply(cPoints[1], [cPoints[1][cPoints[1].length - 2], lineY]);
+							cPoints[0].push.apply(cPoints[0], [cPoints[0][cPoints[0].length - 2], lineCenter]);
+							cPoints[1].push.apply(cPoints[1], [cPoints[1][cPoints[1].length - 2], lineCenter]);
 						}
 						if (uUseDelta) {
-							uPoints[0].push.apply(uPoints[0], [uPoints[0][uPoints[0].length - 2], lineY]);
-							uPoints[1].push.apply(uPoints[1], [uPoints[1][uPoints[1].length - 2], lineY]);
+							uPoints[0].push.apply(uPoints[0], [uPoints[0][uPoints[0].length - 2], lineCenter]);
+							uPoints[1].push.apply(uPoints[1], [uPoints[1][uPoints[1].length - 2], lineCenter]);
 						}
 						
 						// Count
-						r.groupP[index].append("polygon")
+						lineGroup.append("polygon")
 							.attr('class', 'svg-data svg-data-sequence svg-data-doing')
 							.attr("points", p2s(cPoints[0], cPoints[1]))
 							.attr('fill', r.deck.sequences.count.color);
 						
 						// Under
 						if (uPoints[0].length > 2)
-							r.groupP[index].append("polygon")
+							lineGroup.append("polygon")
 								.attr('class', 'svg-data svg-data-sequence svg-data-doing')
 								.attr("points", p2s(uPoints[0], uPoints[1]))
 								.attr('fill', r.deck.sequences.under.color);
@@ -1478,36 +1525,40 @@ app.directive('chartLines', function() {
 							// Failure
 							if (event.x == 'lf') {
 								// Line
-								r.groupP[index].insert('line', ':first-child')
-									.attr('class', "svg-data svg-data-line")
+								elementClasses = (r.meta.holdingMode == 1) ? 'svg-data svg-data-line svg-group-hovered-element' : 'svg-data svg-data-line';
+								if (r.meta.holdingMode >= 1) mapLines[event.h].g.insert('line', ':first-child')
+									.attr('class', elementClasses)
 									.attr('x1', r.scaleX(event.t)).attr('x2', r.scaleX(event.t))
-									.attr('y1', mapLines[event.h].y).attr('y2', mapLines[event.hl].y)
+									.attr('y1', lineCenter).attr('y2', lineCenter + mapLines[event.hl].y - mapLines[event.h].y)
 									.attr('stroke', r.deck.depends.failure.color)
 									.attr('stroke-width', 1)
 									.attr('stroke-dasharray', '2,2');
 								// Cross
-								r.groupP[index].append('text')
+								mapLines[event.h].g.append('text')
 									.attr('class', 'svg-data svg-data-failure svg-data-failure-label')
 									.attr('x', r.scaleX(event.t))
-									.attr('y', mapLines[event.h].y)
+									.attr('y', lineCenter)
 									.attr('text-anchor', 'middle')
 									.attr('alignment-baseline', 'central')
 									.attr('dominant-baseline', 'central')
-									.attr('font-size', '10px')
+									.attr('font-size', '14px')
 									.attr('fill', r.deck.depends.failure.color)
-									.text('×');
+									.text('×'); // ╳
 							} else
 							
 							// Success
 							if (event.x == 'ls') {
 								// Tick
-								r.groupP[index].append('line')
-									.attr('class', "svg-data svg-data-line")
-									.attr('x1', r.scaleX(event.t)).attr('x2', r.scaleX(event.t))
-									.attr('y1', mapLines[event.h].y - 4).attr('y2', mapLines[event.h].y + 4)
-									.attr('stroke', r.deck.depends.working.fcolor)
-									.attr('stroke-width', 1);
-								
+								mapLines[event.h].g.append('text')
+									.attr('class', 'svg-data svg-data-failure svg-data-failure-label svg-data-lock-ls-' + lock)
+									.attr('x', r.scaleX(event.t))
+									.attr('y', lineCenter)
+									.attr('text-anchor', 'middle')
+									.attr('alignment-baseline', 'central')
+									.attr('dominant-baseline', 'central')
+									.attr('font-size', '12px')
+									.attr('fill', r.deck.depends.working.fcolor)
+									.text('[');
 								holded = event;
 							} else
 							
@@ -1517,20 +1568,24 @@ app.directive('chartLines', function() {
 								// Line
 								if (event.t - start > 0) {
 									// Period
-									r.groupP[index].append('line')
+									mapLines[holded.h].g.insert('line', '.svg-data-lock-ls-' + lock)
 										.attr('class', "svg-data svg-data-line")
 										.attr('x1', r.scaleX(start)).attr('x2', r.scaleX(event.t))
-										.attr('y1', mapLines[holded.h].y).attr('y2', mapLines[holded.h].y)
+										.attr('y1', lineCenter).attr('y2', lineCenter)
 										.attr('stroke', r.deck.depends.working.color)
 										.attr('stroke-width', 5);
 									
 									// Tick
-									r.groupP[index].append('line')
-										.attr('class', "svg-data svg-data-line")
-										.attr('x1', r.scaleX(event.t)).attr('x2', r.scaleX(event.t))
-										.attr('y1', mapLines[holded.h].y - 4).attr('y2', mapLines[holded.h].y + 4)
-										.attr('stroke', r.deck.depends.working.fcolor)
-										.attr('stroke-width', 1);
+									mapLines[holded.h].g.append('text')
+										.attr('class', 'svg-data svg-data-failure svg-data-failure-label')
+										.attr('x', r.scaleX(event.t))
+										.attr('y', lineCenter)
+										.attr('text-anchor', 'middle')
+										.attr('alignment-baseline', 'central')
+										.attr('dominant-baseline', 'central')
+										.attr('font-size', '12px')
+										.attr('fill', r.deck.depends.working.fcolor)
+										.text(']');
 								}
 								
 								holded = null;
@@ -1540,59 +1595,16 @@ app.directive('chartLines', function() {
 						if (holded) {
 							// Line
 							if (mapLines[holded.h].e - holded.t > 0)
-								r.groupP[index].append('line')
+								mapLines[holded.h].g.append('line')
 									.attr('class', "svg-data svg-data-line")
 									.attr('x1', r.scaleX(holded.t)).attr('x2', r.scaleX(mapLines[holded.h].e))
-									.attr('y1', mapLines[holded.h].y).attr('y2', mapLines[holded.h].y)
+									.attr('y1', lineCenter).attr('y2', lineCenter)
 									.attr('stroke', r.deck.depends.working.color)
 									.attr('stroke-width', 5);
 							
 						}
 					}
 				}
-				/*
-				if (r.deck.depends) {
-					var facet, points, lineFrom, lineTo;
-					
-					// Start
-					facet = r.deck.depends.start;
-					if (facet)
-						profileData.dependencies[facet.attr].forEach(function(dep, i) {
-							lineFrom = mapLines[(dep[r.deck.depends.from]) ? dep[r.deck.depends.from] : r.deck.depends.failID];
-							lineTo = mapLines[(dep[r.deck.depends.to]) ? dep[r.deck.depends.to] : r.deck.depends.failID];
-							
-							points =
-								'M' + r.scaleX(dep.t - dep.d) + ' ' + lineFrom.y + ' ' + 
-								'H' + r.scaleX(dep.t) + ' ' + 
-								'V' + lineTo.y + ' ' + 
-								'H' + r.scaleX(lineTo.e);
-							 
-							r.groupP[index].append("path")
-								.attr('class', 'svg-data svg-data-dependency')
-								.attr('d', points)
-								.attr('stroke', facet.color)
-								.attr('fill', 'transparent');
-						});
-					
-					// End
-					facet = r.deck.depends.end;
-					if (facet)
-						profileData.dependencies[facet.attr].forEach(function(dep, i) {
-							lineFrom = mapLines[(dep[r.deck.depends.from]) ? dep[r.deck.depends.from] : r.deck.depends.failID];
-							lineTo = mapLines[(dep[r.deck.depends.to]) ? dep[r.deck.depends.to] : r.deck.depends.failID];
-							
-							points =
-								'M' + r.scaleX(dep.t) + ' ' + lineFrom.y + ' ' + 
-								'V' + lineTo.y;
-							 
-							r.groupP[index].append("path")
-								.attr('class', 'svg-data svg-data-dependency')
-								.attr('d', points)
-								.attr('stroke', facet.color)
-								.attr('fill', 'transparent');
-						});
-				}
-				*/
 			});
 
 			// Post-treatment
@@ -1603,7 +1615,7 @@ app.directive('chartLines', function() {
 		function select(positions, y0) {
 			
 			// Select melody
-			if (r.deck.melody && ! r.meta.disableMelody) {
+			if (r.deck.melody_c && ! r.meta.disableMelody) {
 				
 				// Time ID
 				var t = positions.t;
@@ -1619,7 +1631,7 @@ app.directive('chartLines', function() {
 				// Loop
 				for (var index = 0; index < r.profiles.length; index++) {
 					// Focus prefix for rules
-					var prefixID = 'pin-' + r.meta.widget.index + '-' + index + '-melody-';
+					var prefixID = 'rule-' + r.meta.widget.index + '-' + index + '-c-';
 					
 					// Reuse
 					if (r.iSelection[index] != null) {
@@ -1639,7 +1651,7 @@ app.directive('chartLines', function() {
 							r.iSelection[index].append("polygon")
 								.attr('class', "svg-area svg-area-melody-" + l)
 								.attr("points", p2s(r.iData.melody[index][l][1].slice(tIndex * 4, tIndex * 4 + 4), r.iData.melody[index][l][0].slice(tIndex * 4, tIndex * 4 + 4)))
-								.attr('fill', r.deck.melody.fcolor);
+								.attr('fill', r.deck.melody_c.colours.f);
 							
 							// Send new coordinates to controller
 							updateMelodyPin(prefixID, l, y0, index, t, frameID);
@@ -1650,20 +1662,24 @@ app.directive('chartLines', function() {
 		}
 		
 		function updateMelodyPin(prefixID, l, y0, index, t, frameID) {
-			console.log('move'); // arguments
 			if (t >= r.meta.ends[index]) {
 				// Send disable to controller
 				r.scope.focusMovePin(prefixID + l, NaN, NaN);
 				
 			} else {
-				var value = r.profiles[index].currentData[r.deck.melody_cat][l][frameID][r.deck.melody.attr];
-				if (r.deck.melody.unity) value += ' ' + r.deck.melody.unity;
+				var value = r.profiles[index].currentData.raw.amount[frameID][r.deck.melody_c.attr + '_c' + l];
+				if (r.deck.melody_c.unity) value += ' ' + r.deck.melody_c.unity;
 				
 				// Send new coordinates to controller
-				r.scope.focusMovePin(
+				/*r.scope.focusMovePin(
 					prefixID + l,
 					y0 + r.meta.lines[index][l].y + r.layout.profile.y[index] + r.meta.vOverflow[index],
-					value);
+					value);*/
+				r.scope.focusRuleHandle(
+					prefixID + l,
+					y0 + r.meta.lines[index][l].y + r.layout.profile.y[index] + r.meta.vOverflow[index],
+					value,
+					(r.deck.melody_c.unity && r.deck.melody_c.unity.unity) ? value + ' ' + r.deck.melody_c.unity : value);
 			}
 		}
 

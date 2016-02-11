@@ -46,7 +46,7 @@ function addStats(output, profile) {
 
 
 /**
- * Add data-locality data
+ * Add profile strip data
  */
 function addProfiling(output, profile) {
 	// Data
@@ -54,37 +54,47 @@ function addProfiling(output, profile) {
 
 	// Init vars
 	output.profiling = [];
+	var timeStep = data.info.timeStep;
 
 	// Data
 	var max, f;
+	var parallel_threshold = Math.round(profile.hardware.data.lcores / 3 + .33);
+	var parallel_max = profile.hardware.data.lcores - parallel_threshold;
 	
 	// Loop
-	for (var time = 0; time <= data.info.timeMax; time += data.info.timeStep) {
+	for (var time = 0; time <= data.info.timeMax; time += timeStep) {
 		// Result
 		f = { t: time };
 		
 		if (data.frames.hasOwnProperty(time)) {
-		
-			// uu 	: unused
-			// yb	: ready & standby
-			max = data.info.threads * data.info.timeStep;
+			// States
+			// yb: ready & standby
+			max = data.info.threads * timeStep;
 			
+			f.i = Math.round(STRIP_HEIGHT * data.frames[time].idle / max);
+			f.p = Math.round(STRIP_HEIGHT * data.frames[time].parallel / timeStep);
 			f.r = Math.round(STRIP_HEIGHT * data.frames[time].running / max);
-			f.uu = Math.round(STRIP_HEIGHT * data.frames[time].idle / max);
 			f.yb = Math.min(STRIP_HEIGHT, Math.round(STRIP_HEIGHT * (data.frames[time].ready + data.frames[time].standby) / max));
 			f.lw = Math.min(STRIP_HEIGHT, Math.round(STRIP_HEIGHT * data.frames[time].lock_wait / max));
 			f.sys = Math.round(STRIP_HEIGHT * (max - data.frames[time].running - data.frames[time].idle) / max);
 			
-			// miss	: cache misses
+			// Sequential (parallilisation)
+			// q: running cores
+//			f.q = Math.round(STRIP_HEIGHT * ((data.frames[time].runcores >= parallel_threshold) ? 1 : 0));
+			f.q = Math.round(STRIP_HEIGHT * Math.max(0, data.frames[time].runcores - parallel_threshold) / parallel_max);
+			
+			// Cache misses
 			max = data.locality.byFrames[time].ipc + data.locality.byFrames[time].tlb + data.locality.byFrames[time].l1 + data.locality.byFrames[time].l2 + data.locality.byFrames[time].l3 + data.locality.byFrames[time].hpf;
 			
 			f.miss =	STRIP_HEIGHT - Math.round(STRIP_HEIGHT * data.locality.byFrames[time].ipc / max);
 			
 		} else {
+			f.i = NaN;
+			f.p = NaN;
 			f.r = NaN;
-			f.uu = NaN;
 			f.yb = NaN;
 			f.lw = NaN;
+			f.q = NaN;
 			f.miss = NaN;
 		}
 
@@ -117,12 +127,23 @@ function addGauges(output, profile) {
 				u: Math.round(data.locality.stats.tlb + data.locality.stats.l1 + data.locality.stats.l2 + data.locality.stats.l3 + data.locality.stats.hpf) },
 	};
 	
-	// Add states
-	max = data.info.threads * (data.info.timeMax + data.info.timeStep);
+	// Add states - by thread duration
+	max = data.info.threads * data.info.duration;
 	[	{ l: 'r', v: data.stats.running, n: 3 },
 		{ l: 'yb', v: data.stats.ready + data.stats.standby, n: 3 },
-		{ l: 'uu', v: data.stats.idle, n: 3 },
+		{ l: 'i', v: data.stats.idle, n: 3 },
 		{ l: 'lw', v: data.stats.lock_wait, n: 4 }
+	].forEach(function(item) {
+		output.gauges[item.l] = {
+			g: Math.round(100 * item.v / max),
+			l: (item.n <= pv) ? Math.round(100 * item.v / max) + '%' : '?',
+			u: Math.round(item.v)
+		};
+	});
+	
+	// Add states - by duration
+	max = data.info.duration;
+	[	{ l: 'p', v: data.stats.parallel, n: 3 },
 	].forEach(function(item) {
 		output.gauges[item.l] = {
 			g: Math.round(100 * item.v / max),

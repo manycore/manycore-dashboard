@@ -114,7 +114,7 @@ app.factory('facets', ['colours', function(colours) {
 		lf:		{ label: 'lock failure',	title: 'Lock with contention',		desc: desc_lf,	list: 'flocks',		unity: 'events',	cat: 'locks',		attr: 'lf',		colours: colours.sets.Fuschia,	color: colours.list.fFuschia,	fcolor: colours.list.dFuschia,	gcolor: colours.list.lFuschia },
 		
 		p:		{ label: 'Parallel',		unity: '',	attr: 'p',	colours: colours.sets.GreenYlw },
-		q:		{ label: 'Parallelized',	unity: '',	attr: 'q',	colours: colours.sets.Green },
+		q:		{ label: 'Parallelized',	unity: '',	attr: 'q',	colours: colours.sets.GreenYlw },
 		q_s:	{ label: 'sequential',		title: 'Sequential sequence',	desc: desc_q_s,	unity: '', cat: '', attr: '',	colours: colours.sets.Orange,	color: colours.list.fOrange,	fcolor: colours.list.dOrange,	gcolor: colours.list.lOrange },
 		q_p:	{ label: 'parallel',		title: 'Parallel sequence',		desc: desc_q_p,	unity: '', cat: '', attr: '',	colours: colours.sets.Green,	color: colours.list.fGreen,		fcolor: colours.list.dGreen,	gcolor: colours.list.lGreen },
 	};
@@ -343,7 +343,7 @@ app.factory('decks', ['facets', 'colours', function(facets, colours) {
 			focus: [facets.ls, facets.lf],
 			legend: {
 				axis: [
-					{ b: '-', t: 't. value',	d: 'typical value of expected lock acquisitions (could be changed in settings)',	f: limit, sv: 'calibration', sd: 'lock acquisitions by ms' },
+					{ b: '-', t: 't. value',	d: 'typical value of expected lock acquisitions',	f: limit, sv: 'calibration', sd: 'lock acquisitions by ms' },
 					{ b: 'n×', t: 'excess',		d: 'more lock acquisitions than expected (multiple of the typical value)',			f: limit },
 				],
 				data: [
@@ -357,7 +357,7 @@ app.factory('decks', ['facets', 'colours', function(facets, colours) {
 				{ id: 2, label: 'linear', property: 'useLinearScale' },
 			],
 			settings: [
-				{ property: 'calibration', type: 'pnumeric', label: 'Typical values', unit: 'lock acquisitions', psource: function(profile) { return profile.hardware.data.threads * (profile.hardware.calibration.ls + profile.hardware.calibration.lf); } },
+				{ property: 'calibration', type: 'pnumeric', check: 'positive', label: 'Typical values', unit: 'lock acquisitions', psource: function(profile) { return profile.hardware.data.threads * (profile.hardware.calibration.ls + profile.hardware.calibration.lf); } },
 				{ property: 'timeGroup', value: 50, type: 'range', label: 'Group by', unit: 'ms', min: 10, max: 50, step: 10 }
 			]
 		},
@@ -412,7 +412,7 @@ app.factory('decks', ['facets', 'colours', function(facets, colours) {
 			focus: [facets.m],
 			legend: {
 				axis: [
-					{ b: '-', t: 't. value',	d: 'typical value of expected thread migrations (could be changed in settings)',	f: limit, sv: 'calibration', sd: 'thread migrations by ms' },
+					{ b: '-', t: 't. value',	d: 'typical value of expected thread migrations',	f: limit, sv: 'calibration', sd: 'thread migrations by ms' },
 					{ b: 'n×', t: 'excess',		d: 'more thread migrations than expected (multiple of the typical value)',			f: limit },
 				],
 				data: [
@@ -428,7 +428,7 @@ app.factory('decks', ['facets', 'colours', function(facets, colours) {
 				{ id: 2, label: 'linear', property: 'useLinearScale' },
 			],
 			settings: [
-				{ property: 'calibration', type: 'pnumeric', label: 'Typical values', unit: 'thread migrations', psource: function(profile) { return profile.hardware.data.threads * profile.hardware.calibration.m; } },
+				{ property: 'calibration', type: 'pnumeric', check: 'positive', label: 'Typical values', unit: 'thread migrations', psource: function(profile) { return profile.hardware.data.threads * profile.hardware.calibration.m; } },
 				{ property: 'timeGroup', value: 50, type: 'range', label: 'Group by', unit: 'ms', min: 10, max: 50, step: 10 }
 			]
 		},
@@ -446,7 +446,7 @@ app.factory('decks', ['facets', 'colours', function(facets, colours) {
 			focus: [facets.s],
 			legend: {
 				axis: [
-					{ b: '-', t: 't. value',	d: 'typical value of expected context switches (could be changed in settings)',	f: limit, sv: 'calibration', sd: 'context switches by ms' },
+					{ b: '-', t: 't. value',	d: 'typical value of expected context switches',	f: limit, sv: 'calibration', sd: 'context switches by ms' },
 					{ b: 'n×', t: 'excess',		d: 'more context switches than expected (multiple of the typical value)',		f: limit },
 				],
 				data: [
@@ -461,7 +461,7 @@ app.factory('decks', ['facets', 'colours', function(facets, colours) {
 				{ id: 2, label: 'linear', property: 'useLinearScale' },
 			],
 			settings: [
-				{ property: 'calibration', type: 'pnumeric', label: 'Typical values', unit: 'context switches', psource: function(profile) { return profile.hardware.data.threads * profile.hardware.calibration.s; } },
+				{ property: 'calibration', type: 'pnumeric', check: 'positive', label: 'Typical values', unit: 'context switches', psource: function(profile) { return profile.hardware.data.threads * profile.hardware.calibration.s; } },
 				{ property: 'timeGroup', value: 50, type: 'range', label: 'Group by', unit: 'ms', min: 10, max: 50, step: 10 }
 			]
 		},
@@ -504,8 +504,8 @@ app.factory('decks', ['facets', 'colours', function(facets, colours) {
 			},
 			graph : {
 				h:			limit,		// threads (color)
-				ticks:		[facets.m],
-				periods:	[facets.m],
+				ticks:		[{f: facets.m}],
+				periods:	facets.m,
 				c_periods:	colours.cores,
 			},
 			data: [facets.m],
@@ -541,8 +541,8 @@ app.factory('decks', ['facets', 'colours', function(facets, colours) {
 			},
 			graph : {
 				h:	limit,		// threads (color)
-				ticks:		[facets.ls, facets.lf],
-				periods:	[facets.lw],
+				ticks:		[{f: facets.ls, char: '[', size: 14}, {f: facets.lf, char: '╳', colour: 'g', size: 6}],
+				periods:	facets.lw,
 			},
 			data: [facets.lw],
 			legend: {
@@ -594,6 +594,9 @@ app.factory('decks', ['facets', 'colours', function(facets, colours) {
 			]
 		},
 		pCoordDL: {
+			handling: {
+				time: TIME_NONE,
+			},
 			graph : {
 				h:		limit,
 				plots:	[facets.pn, facets.h, facets.ct, facets.ipc, facets.tlb, facets.l1, facets.l2, facets.l3, facets.hpf],

@@ -188,6 +188,36 @@ app.controller('DashboardController', ['$scope', '$rootScope', '$window', '$stat
 	};
 	*/
 	
+	/************************************************/
+	/* Graphical - Help selection					*/
+	/************************************************/
+	/**
+	 * UI - Category hovered
+	 */
+	$scope.selectCategory = function(category) {
+		$scope.hoveredCategory = category;
+	}
+	
+	/**
+	 * UI - Category leaved
+	 */
+	$scope.unselectCategory = function() {
+		$scope.hoveredCategory = null;
+	}
+	/**
+	 * UI - Strip hovered
+	 */
+	$scope.selectStrip = function(strip) {
+		$scope.hoveredStrip = strip;
+	}
+	
+	/**
+	 * UI - Strip leaved
+	 */
+	$scope.unselectStrip = function() {
+		$scope.hoveredStrip = null;
+	}
+	
 	
 
 	/************************************************/
@@ -314,4 +344,10 @@ app.controller('DashboardController', ['$scope', '$rootScope', '$window', '$stat
 	/************************************************/
 	// Restore
 	$scope.restoreProfiles();
+
+	/**
+	 * Populate
+	 */
+	$scope.hoveredCategory = null; // populated by the view
+	$scope.hoveredStrip = null; // populated by the view
 }]);

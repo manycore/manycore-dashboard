@@ -103,7 +103,7 @@ app.directive('chartStats', function() {
 				shapes[index].push(group.append("rect")
 					.attr("width", layout.stacks.width)
 					.attr("x", 0)
-					.style("fill", deck[f].color));
+					.style("fill", deck[f].colours.n));
 			}
 		}
 
@@ -184,9 +184,10 @@ app.directive('facetList', [function() {
 						d: item.d,
 						s: ('sv' in item) ? getSettings(item) : null
 					});
+					if (! item.c && (! item.f || ! item.f.colours)) console.log('legend missing colour', item);
 					styles += '#' + itemID + ':before {' +
 							'content: "' + (('b' in item) ? item.b : '▮') + '";' +
-							'color: ' + (('c' in item) ? item.c : ('f' in item) ? item.f.color : '#000') + ';' +
+							'color: ' + (('c' in item) ? item.c : ('f' in item) ? item.f.colours.n : '#000') + ';' +
 						'}';
 				});
 			});

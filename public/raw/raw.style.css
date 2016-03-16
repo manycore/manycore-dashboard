@@ -1,0 +1,75 @@
+/*
+ * Raw dashboard
+ */
+.raw {
+	padding-top: 0px !important;
+	transition: .2s linear all;
+}
+.raw table {
+	width: 100%;
+	margin-bottom: 0px;
+}
+
+
+/*
+ * Raw accordion
+ */
+.raw uib-accordion .panel-heading {
+	text-align: center;
+}
+.raw uib-accordion .panel-body {
+	padding: 0px;
+}
+
+.raw uib-accordion .panel .external-link {
+	display: none;
+	padding: 6px;
+	text-align: right;
+	font-size: 12px;
+}
+.raw uib-accordion .panel:hover .external-link { display: block; }
+.raw uib-accordion .panel .external-link i { margin-left: 4px; }
+
+
+/*
+ * Raw table
+ */
+.raw .table-raw tbody tr.info td,
+.raw .table-raw tbody tr.active td {
+	text-align: center !important;
+}
+
+.raw .table-raw tr > *:first-child {
+	width: 40%;
+	text-align: left;
+}
+.raw .table-raw tr > *:not(:first-child) {
+	text-align: right;
+}
+
+.raw .table-raw tr td:not(:first-child) span {
+	margin-left: 3px;
+	font-size: 0.8em;
+	font-weight: 400;
+}
+
+.raw .table-raw tr td:first-child em {
+	margin-left: 6px;
+	font-size: 0.8em;
+	font-weight: 400;
+}
+.raw .table-raw tr td:not(:first-child)  em {
+	margin-right: 6px;
+	font-size: 0.8em;
+	font-weight: 400;
+}
+/*
+.raw .table-raw tr td:first-child em::before { content: '('; }
+.raw .table-raw tr td:first-child em::after { content: ')'; }
+*/
+
+/* .raw .table-raw hr { margin: 3px 0px 0px 0px; }*/
+.raw .table-raw div {
+	margin-top: 3px;
+	border-top: 1px solid #dddddd;
+}

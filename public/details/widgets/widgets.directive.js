@@ -60,7 +60,7 @@ var graphLayout = function(favoriteHeight) {
 /**
  * Meta (parameters)
  */
-var graphMeta = function(scope, attributes, mirror, canOverflow, params, settings) {
+var graphMeta = function(scope, attributes, params, settings, isOverflowBad) {
 	// Allow seld reference (otherwise this is the caller object)
 	var self = this;
 
@@ -78,14 +78,13 @@ var graphMeta = function(scope, attributes, mirror, canOverflow, params, setting
 	this.steps =		[NaN, NaN];	// Time step of profiles
 
 	// Parameters
-	this.mirror =		(mirror !== undefined) ? mirror : false;
-	this.canOverflow =	(canOverflow !== undefined) ? canOverflow : false;
-
+	this.isOverflowBad =	(isOverflowBad !== undefined) ? isOverflowBad : false;
+	
 	// Value axis
-	this.vExpected =	[NaN, NaN];		// if there is an expected value, which value ?
-	this.vMinDisplay =	[NaN, NaN];		// which is the minimum value to display ?
-	this.vStep =		[NaN, NaN];		// what is the step to display the ticks on the axis ?
-	this.vOverflow =	[NaN, NaN];		// Possible overflow by first and second profile
+	this.vExpected =	[NaN, NaN];	// if there is an expected value, which value ?
+	this.vMinDisplay =	[NaN, NaN];	// which is the minimum value to display ?
+	this.vStep =		[NaN, NaN];	// what is the step to display the ticks on the axis ?
+	this.vOverflow =	[NaN, NaN];	// Possible overflow by first and second profile
 
 	// On demand - params
 	if (params)
@@ -126,14 +125,14 @@ var graphMeta = function(scope, attributes, mirror, canOverflow, params, setting
 /**
  * Init directive
  */
-function directive_init(scope, element, attrs, layoutType, mirror, canOverflow) {
+function directive_init(scope, element, attrs, layoutType, isOverflowBad) {
 	// Layout
 	var container =	element[0];
 	var layout =	new graphLayout(layoutType);
 	
 	// Attributes
 	var deck =		scope.widget.deck.graph;
-	var meta =		new graphMeta(scope, attrs, mirror, canOverflow, scope.widget.deck.params, scope.widget.deck.settings);
+	var meta =		new graphMeta(scope, attrs, scope.widget.deck.params, scope.widget.deck.settings, isOverflowBad);
 	
 	// Plans modes
 	var plan;
@@ -151,13 +150,54 @@ function directive_init(scope, element, attrs, layoutType, mirror, canOverflow) 
 
 	// Canvas
 	var svg =		d3.select(container).append('svg').attr('class', 'svg-charts');
+	
+	// SVG styles
+	if (meta.isOverflowBad) {
+		var svgDefs = svg.append('defs');
+		// Text
+		svgDefs.append('pattern')
+			.attr('id', 'pattern-text-stripe')
+			.attr('width', 34)
+			.attr('height', 22)
+			.attr('patternUnits', 'userSpaceOnUse')
+			.attr('patternTransform', 'rotate(-45)')
+			.append('text')
+				.attr('class', 'svg-text')
+				.attr('y', 10)
+				.attr('font-family', 'Avenir')
+				.attr('font-size', 12 + 'px')
+				.attr('fill', '#ff9f7c')
+				.text('high');
+		// Pattern
+		svgDefs.append('pattern')
+			.attr('id', 'pattern-stripe')
+			.attr('width', 4)
+			.attr('height', 4)
+			.attr('patternUnits', 'userSpaceOnUse')
+			.attr('patternTransform', 'rotate(45)')
+			.append('rect')
+				.attr('width', 2)
+				.attr('height', 4)
+				.attr('transform', 'translate(0,0)')
+				.attr('fill', 'white');
+		// Mask
+		svgDefs.append('mask')
+			.attr('id', 'mask-stripe')
+			.append('rect')
+				.attr('x', 0)
+				.attr('y', 0)
+				.attr('width', '100%')
+				.attr('height', '100%')
+				.attr('fill', 'url(#pattern-stripe)');
+	}
 
 	// Scales
 	var scaleX =	d3.scale.linear();
 	var scalesV =	[d3.scale.linear(), d3.scale.linear()];
 
 	// Overflow
-	var overflow =	(canOverflow) ? svg.append("g").attr('class', "svg-overflow") : svg;
+	var svgMask =	(meta.isOverflowBad) ? svg.append("g").attr('class', "svg-masks") : null;
+	var overflow =	svg.append("g").attr('class', "svg-overflow");
 
 	// Groups
 	var groupAxisX =	overflow.append("g").attr('class', "svg-axis svg-axis-x");
@@ -165,7 +205,7 @@ function directive_init(scope, element, attrs, layoutType, mirror, canOverflow) 
 	var groupAxisV1 =	overflow.append("g").attr('class', "svg-axis svg-axis-v svg-profile-1");
 	var groupP2 =		overflow.append("g").attr('class', "svg-profile svg-profile-2");
 	var groupAxisV2 =	overflow.append("g").attr('class', "svg-axis svg-axis-v svg-profile-2");
-
+	
 
 	return {
 		scope:		scope,
@@ -179,6 +219,7 @@ function directive_init(scope, element, attrs, layoutType, mirror, canOverflow) 
 		meta:		meta,
 		profiles:	profiles,
 		svg:		svg,
+		svgMask:	svgMask,
 		scaleX:		scaleX,
 		scalesV:	scalesV,
 		groupO:		overflow,
@@ -213,6 +254,22 @@ function directive_focus_init(r, repeater) {
 					f: r.deck.melody_c
 				})
 			}
+		}
+		
+		// for sequences
+		if (r.deck.sequences) {
+			valuedPins.push({
+				id: prefixProfile + 'q-under',
+				l: r.deck.sequences.under.label,
+				f: r.deck.sequences.under,
+				h: true
+			});
+			valuedPins.push({
+				id: prefixProfile + 'q-count',
+				l: r.deck.sequences.count.label,
+				f: r.deck.sequences.count,
+				h: true
+			});
 		}
 	});
 	
@@ -250,10 +307,8 @@ function directive_repaint_container(r) {
 	directive_unselect(r);
 
 	// Overflow
-	if (r.meta.canOverflow) {
-		r.meta.vOverflow = [0, 0];
-		r.groupO.attr('transform', null);
-	}
+	r.meta.vOverflow = [0, 0];
+	r.groupO.attr('transform', null);
 }
 
 /**
@@ -268,7 +323,7 @@ function directive_repaint_scales(r, vData, vData2) {
 	// Scales - domains (coordinates)
 	r.scaleX.rangeRound([r.layout.profile.left, r.layout.profile.right]);
 	r.scalesV[0].rangeRound([r.layout.profile.bottom, r.layout.profile.top]);
-	if (r.meta.mirror) r.scalesV[1].rangeRound([r.layout.profile.top, r.layout.profile.bottom]); else r.scalesV[1].rangeRound([r.layout.profile.bottom, r.layout.profile.top]);
+	r.scalesV[1].rangeRound([r.layout.profile.top, r.layout.profile.bottom]);
 }
 
 /**
@@ -287,23 +342,14 @@ function directive_repaint_post(r) {
 			.text(profile.label);
 	});
 		
-	// Overflow
-	if (r.meta.canOverflow) {
-
-		// Top (profile 1)
-		if (r.meta.vOverflow[0] > 0) {
-			r.groupO.attr('transform', "translate(0," + r.meta.vOverflow[0] + ')');
-		}
-
-		// Top (profile 2)
-		if (r.meta.vOverflow[1] > 0 && ! r.meta.mirror) {
-			r.group1.attr('transform', "translate(0," + r.meta.vOverflow[1] + ')');
-		}
-
-		// Top & Bottom (both profiles)
-		d3.select(r.container).style('height', (r.layout.height + r.meta.vOverflow[0] + r.meta.vOverflow[1]) + 'px');
-		r.svg.attr('height', r.layout.height + r.meta.vOverflow[0] + r.meta.vOverflow[1]);
+	// Overflow - Top (profile 1)
+	if (r.meta.vOverflow[0] > 0) {
+		r.groupO.attr('transform', "translate(0," + r.meta.vOverflow[0] + ')');
 	}
+
+	// Overflow - Top & Bottom (both profiles)
+	d3.select(r.container).style('height', (r.layout.height + r.meta.vOverflow[0] + r.meta.vOverflow[1]) + 'px');
+	r.svg.attr('height', r.layout.height + r.meta.vOverflow[0] + r.meta.vOverflow[1]);
 }
 
 /**
@@ -413,12 +459,19 @@ function directive_repaint_VAxis(r, index, valueFunction) {
 
 	// Length
 	var vMax;
-	if (index == 1 && r.meta.canOverflow) {
+	if (index == 1) {
 		vMax = r.scalesV[index].invert(r.layout.profile.height + r.meta.vOverflow[index]);
 	} else {
 		vMax = r.scalesV[index].invert(- r.meta.vOverflow[index]);
 	}
-
+	
+	// Cache values
+	var xBegin = r.scaleX(r.meta.begin);
+	var xEnd = r.scaleX(r.meta.ends[index]);
+	var yZero = r.scalesV[index](0);
+	var yExpected = r.scalesV[index](r.meta.vExpected[index]);
+	var yMax = r.scalesV[index](vMax);
+	
 	for (var v = r.meta.vStep[index]; v < vMax; v += r.meta.vStep[index]) {
 		// Tick
 		r.groupV[index].append('line')
@@ -444,10 +497,10 @@ function directive_repaint_VAxis(r, index, valueFunction) {
 		if (v == r.meta.vExpected[index])
 			r.groupV[index].append('line')
 				.attr('class', 'line')
-				.attr('x1', r.layout.profile.x + r.scaleX(r.meta.begin))
-				.attr('x2', r.layout.profile.x + r.scaleX(r.meta.ends[index]))
-				.attr('y1', r.scalesV[index](r.meta.vExpected[index]))
-				.attr('y2', r.scalesV[index](r.meta.vExpected[index]))
+				.attr('x1', r.layout.profile.x + xBegin)
+				.attr('x2', r.layout.profile.x + xEnd)
+				.attr('y1', yExpected)
+				.attr('y2', yExpected)
 				.attr('stroke', r.deck.limit.fcolor)
 				.attr('stroke-width', 3)
 				.attr('stroke-dasharray', '5, 3');
@@ -455,22 +508,22 @@ function directive_repaint_VAxis(r, index, valueFunction) {
 
 	// Line
 	/*var points = [
-		r.layout.vAxis.width - 4,	r.scalesV[index](vMax) + ((index == 0) ? -2 : 2),
-		r.layout.vAxis.width,		r.scalesV[index](vMax) + ((index == 0) ? -5 : 5),
-		r.layout.vAxis.width + 2,	r.scalesV[index](vMax) + ((index == 0) ? -2 : 2),
+		r.layout.vAxis.width - 4,	yMax + ((index == 0) ? -2 : 2),
+		r.layout.vAxis.width,		yMax + ((index == 0) ? -5 : 5),
+		r.layout.vAxis.width + 2,	yMax + ((index == 0) ? -2 : 2),
 	];*/
 	r.groupV[index].append('line')
 			.attr('class', "svg-line")
 			.attr('x1', r.layout.vAxis.width).attr('x2', r.layout.vAxis.width)
-			.attr('y1', r.scalesV[index](0))
-			.attr('y2', r.scalesV[index](vMax) + ((index == 0) ? -5 : 5))
+			.attr('y1', yZero)
+			.attr('y2', yMax + ((index == 0) ? -5 : 5))
 			.attr('stroke', '#000000')
 			.attr('stroke-width', 3);
 	r.groupV[index].append('line')
 			.attr('class', "svg-arrow")
 			.attr('x1', r.layout.vAxis.width).attr('x2', r.layout.vAxis.width)
-			.attr('y1', r.scalesV[index](vMax) + ((index == 0) ? -5 : 5))
-			.attr('y2', r.scalesV[index](vMax) + ((index == 0) ? -7 : 7))
+			.attr('y1', yMax + ((index == 0) ? -5 : 5))
+			.attr('y2', yMax + ((index == 0) ? -7 : 7))
 			.attr('stroke', '#000000')
 			.attr('stroke-width', 1);
 	/*r.groupV[index].append("polyline")
@@ -478,6 +531,60 @@ function directive_repaint_VAxis(r, index, valueFunction) {
 			.attr("points", p2s(points))
 			.attr('stroke', '#000000')
 			.attr('stroke-width', 1);*/
+}
+
+/**
+ * Repaint - Masks
+ */
+function directive_repaint_Masks(r) {
+	// Clean masks
+	r.svgMask.selectAll('*').remove();
+	
+	// Tough prerequites
+	if (! r.meta.highlightOverflow) return;
+	
+	for (var index = 0; index < r.profiles.length; index++) {
+		// Length
+		var vMax;
+		if (index == 1) {
+			vMax = r.scalesV[index].invert(r.layout.profile.height + r.meta.vOverflow[index]);
+		} else {
+			vMax = r.scalesV[index].invert(- r.meta.vOverflow[index]);
+		}
+		
+		// Cache values
+		var xBegin = r.scaleX(r.meta.begin);
+		var xEnd = r.scaleX(r.meta.ends[index]);
+		var yExpected = r.scalesV[index](r.meta.vExpected[index]);
+		var yMax = r.scalesV[index](vMax);
+		
+		// Exceed - Text
+		r.svgMask.append('rect')
+			.attr('x', r.layout.profile.x)
+			.attr('y', r.layout.profile.y[index] + ((index == 0) ? -5 : yExpected + r.meta.vOverflow[0]))
+			.attr('width', xEnd - xBegin)
+			.attr('height', ((index == 0) ? yExpected - yMax : yMax - yExpected) + 5)
+			.attr('fill', 'url(#pattern-text-stripe)');
+		/*
+		// Exceed - stripes
+		r.svgMask.append('rect')
+			.attr('x', r.layout.profile.x)
+			.attr('y', r.layout.profile.y[index] + ((index == 0) ? -5 : yExpected + r.meta.vOverflow[0]))
+			.attr('width', xEnd - xBegin)
+			.attr('height', ((index == 0) ? yExpected - yMax : yMax - yExpected) + 5)
+			.attr('mask', 'url(#mask-stripe)')
+			.attr('fill', '#ff9f7c');
+		// In bounds
+		/*
+		r.svgMask.append('rect')
+			.attr('x', r.layout.profile.x)
+			.attr('y', r.layout.profile.y[index] + ((index == 0) ? yExpected - yMax : r.meta.vOverflow[0]))
+			.attr('width', xEnd - xBegin)
+			.attr('height', yExpected)
+			.attr('mask', 'url(#mask-stripe)')
+			.attr('fill', '#50f3ff');
+		*/
+	}
 }
 
 /**
@@ -594,7 +701,7 @@ app.directive('chartPercent', function() {
 		console.log("== directive == chartPercent ==");
 
 		// Init vars
-		var r = directive_init(scope, element, attrs, LAYOUT_FH_NORMAL, true, true);
+		var r = directive_init(scope, element, attrs, LAYOUT_FH_NORMAL);
 
 		// Enhance meta
 		r.meta.vExpected[0] =	100;	r.meta.vExpected[1] =	100;
@@ -650,19 +757,16 @@ app.directive('chartPercent', function() {
 				// All - points - data
 				tStep = profileData.info.timeStep;
 				scaleVZero = r.scalesV[index](0);
-				for (var t = r.meta.begin; t < r.meta.end; t += tStep) {
+				for (var t = r.meta.begin; t < r.meta.ends[index]; t += tStep) {
 					for (var v = 0; v < r.deck.v.length; v++) {
-						if (profileData.percent.hasOwnProperty(t) && profileData.percent[t].hasOwnProperty(r.deck.v[v].attr))
-							yPositions[v] = profileData.percent[t][r.deck.v[v].attr];
-						else
-							yPositions[v] = 0;
+						// Get raw data (in percent)
+						yPositions[v] = profileData.raw.amountPercent[t / tStep][r.deck.v[v].attr] | 0;
 
 						// Stack positions
-						if (v > 0)
-							yPositions[v] += yPositions[v-1];
+						if (v > 0) yPositions[v] += yPositions[v-1];
 
 						yScaledPosition = r.scalesV[index](yPositions[v]);
-
+						
 						// Add points to shape (x, y, x, y)
 						//	=> twice for the boxing effect
 						r.iData[index][v + 1].push(r.scaleX(t), yScaledPosition, r.scaleX(t + tStep), yScaledPosition);
@@ -680,7 +784,7 @@ app.directive('chartPercent', function() {
 					r.groupP[index].append("polygon")
 						.attr('class', "svg-data svg-area svg-area-" + v)
 						.attr("points", p2s(r.iData[index][v + 1], r.iData[index][v]))
-						.attr('fill', r.deck.v[v].color);
+						.attr('fill', r.deck.v[v].colours.n);
 				};
 
 				// Value axis
@@ -726,7 +830,7 @@ app.directive('chartPercent', function() {
 						r.iSelection[index].append("polygon")
 							.attr('class', "svg-area svg-area-" + v)
 							.attr("points", p2s(r.iData[index][v + 1].slice(tIndex * 4, tIndex * 4 + 4), r.iData[index][v].slice(tIndex * 4, tIndex * 4 + 4)))
-							.attr('fill', r.deck.v[v].fcolor);
+							.attr('fill', r.deck.v[v].colours.f);
 						
 						// Send new coordinates to controller
 						yLastPosition = updateFocusRule(prefixID, y0, yLastPosition, index, t, tIndex, v);
@@ -738,52 +842,45 @@ app.directive('chartPercent', function() {
 		function updateFocusRule(prefixID, y0, yLastPosition, index, t, tIndex, v) {
 			var facet = r.deck.v[v];
 			var yNormalized;
+			var value = (tIndex in r.profiles[index].currentData.raw.amount) ? r.profiles[index].currentData.raw.amount[tIndex][facet.attr] | 0 : 0;
 			
-			if (t >= r.meta.ends[index] || ! r.profiles[index].currentData.percent[t][facet.attr]) {
+			if (t >= r.meta.ends[index] || value < 1) {
 				// Send disable to controller
 				r.scope.focusRuleHandle(prefixID + facet.attr, NaN, NaN, NaN);
 				return null;
 				
 			} else {
-				var value = r.profiles[index].currentData[facet.cat][t][facet.attr];
-				
-				if (value >= 1) {
-					if (yLastPosition) {
-						if (index == 0) {
-							yNormalized = Math.min(
-								yLastPosition - FOCUS_PIN_OVERLAP_MARGIN,
-								y0 + (r.iData[0][v + 1][tIndex * 4 + 1] + r.iData[0][v][tIndex * 4 + 1]) / 2 + r.layout.profile.y[0] + r.meta.vOverflow[0]);
-						} else {
-							yNormalized = Math.max(
-								yLastPosition + FOCUS_PIN_OVERLAP_MARGIN,
-								y0 + (r.iData[1][v + 1][tIndex * 4 + 1] + r.iData[1][v][tIndex * 4 + 1]) / 2 + r.layout.profile.y[1] + r.meta.vOverflow[0]);
-						}
+				if (yLastPosition) {
+					if (index == 0) {
+						yNormalized = Math.min(
+							yLastPosition - FOCUS_PIN_OVERLAP_MARGIN,
+							y0 + (r.iData[0][v + 1][tIndex * 4 + 1] + r.iData[0][v][tIndex * 4 + 1]) / 2 + r.layout.profile.y[0] + r.meta.vOverflow[0]);
 					} else {
-						if (index == 0) {
-							yNormalized = Math.min(
-								y0 - FOCUS_PIN_MARGIN + 1 + r.layout.profile.y[0] + r.meta.vOverflow[0] + r.layout.profile.height,
-								y0 + (r.iData[0][v + 1][tIndex * 4 + 1] + r.iData[0][v][tIndex * 4 + 1]) / 2 + r.layout.profile.y[0] + r.meta.vOverflow[0]
-							);
-						} else {
-							yNormalized = Math.max(
-								y0 + FOCUS_PIN_MARGIN + r.layout.profile.y[1] + r.meta.vOverflow[0],
-								y0 + (r.iData[1][v + 1][tIndex * 4 + 1] + r.iData[1][v][tIndex * 4 + 1]) / 2 + r.layout.profile.y[1] + r.meta.vOverflow[0]
-							);
-						}
+						yNormalized = Math.max(
+							yLastPosition + FOCUS_PIN_OVERLAP_MARGIN,
+							y0 + (r.iData[1][v + 1][tIndex * 4 + 1] + r.iData[1][v][tIndex * 4 + 1]) / 2 + r.layout.profile.y[1] + r.meta.vOverflow[0]);
 					}
-					
-					// Send new coordinates to controller
-					r.scope.focusRuleHandle(
-						prefixID + facet.attr,
-						yNormalized,
-						value,
-						(facet.unity) ? value + ' ' + facet.unity : value);
-					return yNormalized;
 				} else {
-					// Send disable to controller
-					r.scope.focusRuleHandle(prefixID + facet.attr, NaN, NaN, NaN);
-					return yLastPosition;
+					if (index == 0) {
+						yNormalized = Math.min(
+							y0 - FOCUS_PIN_MARGIN + 1 + r.layout.profile.y[0] + r.meta.vOverflow[0] + r.layout.profile.height,
+							y0 + (r.iData[0][v + 1][tIndex * 4 + 1] + r.iData[0][v][tIndex * 4 + 1]) / 2 + r.layout.profile.y[0] + r.meta.vOverflow[0]
+						);
+					} else {
+						yNormalized = Math.max(
+							y0 + FOCUS_PIN_MARGIN + r.layout.profile.y[1] + r.meta.vOverflow[0],
+							y0 + (r.iData[1][v + 1][tIndex * 4 + 1] + r.iData[1][v][tIndex * 4 + 1]) / 2 + r.layout.profile.y[1] + r.meta.vOverflow[0]
+						);
+					}
 				}
+				
+				// Send new coordinates to controller
+				r.scope.focusRuleHandle(
+					prefixID + facet.attr,
+					yNormalized,
+					value,
+					(facet.unity) ? value + ' ' + facet.unity : value);
+				return yNormalized;
 			}
 		}
 
@@ -808,7 +905,7 @@ app.directive('chartUnits', function() {
 		console.log("== directive == chartUnits ==");
 
 		// Init vars
-		var r = directive_init(scope, element, attrs, LAYOUT_FH_BAND, true, true, true);
+		var r = directive_init(scope, element, attrs, LAYOUT_FH_BAND, true);
 
 		// Axis label
 		function vAxisLabel(v, index) {
@@ -862,7 +959,7 @@ app.directive('chartUnits', function() {
 			// Main draw
 			var profileData, yPositions, yLogPosition, yScaledPosition;
 			var tID, scaleVZero;
-			var tStep = r.settings.timeGroup;
+			var tStep = r.settings.timeGroup | r.meta.timeGroup;
 			var dataSource_list, dataSource_length, dataSource_index;
 			r.profiles.forEach(function(profile, index) {
 				// Clean
@@ -878,25 +975,31 @@ app.directive('chartUnits', function() {
 				yPositions = [];
 				r.iData[index] = [[]];
 				for (var v = 0; v < r.deck.v.length; v++) {
-					dataSource_list.push(profileData[r.deck.v[v].list]);
-					dataSource_length.push(profileData[r.deck.v[v].list].length);
-					dataSource_index.push(0);
+					if (! r.deck.useFrameIstead) {
+						dataSource_list.push(profileData[r.deck.v[v].list]);
+						dataSource_length.push(profileData[r.deck.v[v].list].length);
+						dataSource_index.push(0);
+					}
 					yPositions.push(NaN);
 					r.iData[index].push([]);
 				};
 
 				// All - points - data
 				scaleVZero = r.scalesV[index](0);
-				for (var t = r.meta.begin; t < r.meta.end; t += tStep) {
+				for (var t = r.meta.begin; t < r.meta.ends[index]; t += tStep) {
 					tID = t / tStep;
 
 					for (var v = 0; v < r.deck.v.length; v++) {
 						yPositions[v] = 0;
 
 						// Count all values inside the time frame
-						while(dataSource_index[v] < dataSource_length[v] && dataSource_list[v][dataSource_index[v]] < (t + tStep)) {
-							yPositions[v]++;
-							dataSource_index[v]++;
+						if (r.deck.useFrameIstead) {
+							yPositions[v] = profileData.raw.amount[tID][r.deck.v[v].attr];
+						} else {
+							while (dataSource_index[v] < dataSource_length[v] && dataSource_list[v][dataSource_index[v]] < (t + tStep)) {
+								yPositions[v]++;
+								dataSource_index[v]++;
+							}
 						}
 
 						// Stack positions
@@ -933,12 +1036,15 @@ app.directive('chartUnits', function() {
 					r.groupP[index].append("polygon")
 						.attr('class', "svg-data svg-area svg-area-" + v)
 						.attr("points", p2s(r.iData[index][v + 1], r.iData[index][v]))
-						.attr('fill', r.deck.v[v].color);
+						.attr('fill', r.deck.v[v].colours.n);
 				};
 
 				// Value axis
 				directive_repaint_VAxis(r, index, vAxisLabel);
 			});
+			
+			// SVG masks
+			if (r.meta.isOverflowBad) directive_repaint_Masks(r);
 
 			// Post-treatment
 			directive_repaint_post(r);
@@ -947,7 +1053,7 @@ app.directive('chartUnits', function() {
 		// Select
 		function select(positions, y0) {
 			// Time ID
-			var tIndex = Math.floor(positions.t / r.settings.timeGroup);
+			var tIndex = Math.floor(positions.t / (r.settings.timeGroup | r.meta.timeGroup));
 			if (tIndex == r.meta.lastSelectID) {
 				return;
 			} else {
@@ -978,7 +1084,7 @@ app.directive('chartUnits', function() {
 						r.iSelection[index].append("polygon")
 							.attr('class', "svg-area svg-area-" + v)
 							.attr("points", p2s(r.iData[index][v + 1].slice(tIndex * 4, tIndex * 4 + 4), r.iData[index][v].slice(tIndex * 4, tIndex * 4 + 4)))
-							.attr('fill', r.deck.v[v].fcolor);
+							.attr('fill', r.deck.v[v].colours.f);
 						
 						// Send new coordinates to controller
 						yLastPosition = updateFocusRule(prefixID, y0, yLastPosition, index, tIndex, v);
@@ -992,7 +1098,7 @@ app.directive('chartUnits', function() {
 			var facet = r.deck.v[v];
 			var yNormalized;
 			
-			if (tIndex >= r.meta.ends[index] / r.settings.timeGroup) {
+			if (tIndex >= r.meta.ends[index] / (r.settings.timeGroup | r.meta.timeGroup)) {
 				// Send disable to controller
 				r.scope.focusRuleHandle(prefixID + facet.attr, NaN, NaN, NaN);
 				return null;
@@ -1058,13 +1164,14 @@ app.directive('chartUnits', function() {
 /**
  * Stack
  */
+/**
 app.directive('chartStack', function() {
 
 	function chart_link(scope, element, attrs, controller) {
 		console.log("== directive == chartStack ==");
 
 		// Init vars
-		var r = directive_init(scope, element, attrs, LAYOUT_FH_NORMAL, true, true);
+		var r = directive_init(scope, element, attrs, LAYOUT_FH_NORMAL);
 
 		// Enhance meta
 		r.meta.vExpected[0] =	r.deck.expected(r.profiles[0]);
@@ -1191,7 +1298,7 @@ app.directive('chartStack', function() {
 		restrict: 'E'
 	}
 });
-
+*/
 
 
 /**
@@ -1203,7 +1310,7 @@ app.directive('chartThreads', function() {
 		console.log("== directive == chartThreads ==");
 
 		// Init vars
-		var r = directive_init(scope, element, attrs, LAYOUT_FH_NULL, true, true);
+		var r = directive_init(scope, element, attrs, LAYOUT_FH_NULL);
 
 		// Enhance meta
 		r.meta.thread_Height = 12;
@@ -1378,10 +1485,18 @@ app.directive('chartLines', function() {
 		console.log("== directive == chartLines ==");
 
 		// Init vars
-		var r = directive_init(scope, element, attrs, LAYOUT_FH_NULL, true, true);
+		var r = directive_init(scope, element, attrs, LAYOUT_FH_NULL);
 
 		// Enhance meta
 		if (! r.meta.lineHeight) r.meta.lineHeight = 12;
+		if (r.deck.sequences) {
+			r.meta.sequenceKeys = [Object.keys(r.profiles[0].currentData.events.q)];
+			r.meta.sequenceKeysLength = [r.meta.sequenceKeys[0].length];
+			if (r.profiles.length >= 2) {
+				r.meta.sequenceKeys.push(Object.keys(r.profiles[1].currentData.events.q));
+				r.meta.sequenceKeysLength.push(r.meta.sequenceKeys[1].length);
+			}
+		}
 		
 		// lines
 		r.meta.lines = [
@@ -1510,10 +1625,11 @@ app.directive('chartLines', function() {
 						// Compute points
 						var points = [[], []];
 						var timeStep = profileData.info.timeStep;
+						var max = (r.deck.melody_c_max) ? r.deck.melody_c_max(profile, timeStep) : timeStep;
 						var frameIndex;
 						for (var frameID = r.meta.begin; frameID < r.meta.ends[index]; frameID += timeStep) {
 							frameIndex = frameID / timeStep;
-							delta = profileData.raw.amount[frameIndex][r.deck.melody_c.attr + '_c' + line.id] * r.meta.melodyHeight / 2 / timeStep;
+							delta = profileData.raw.amount[frameIndex][r.deck.melody_c.attr + '_c' + line.id] * r.meta.melodyHeight / 2 / max;
 							points[0].push.apply(points[0], [r.scaleX(frameID), lineCenter + delta, r.scaleX(frameID + timeStep), lineCenter + delta]);
 							points[1].push.apply(points[1], [r.scaleX(frameID), lineCenter - delta, r.scaleX(frameID + timeStep), lineCenter - delta]);
 						}
@@ -1696,12 +1812,13 @@ app.directive('chartLines', function() {
 
 		// Select
 		function select(positions, y0) {
+			// Time processing
+			var t = positions.t;
 			
 			// Select melody
 			if (r.deck.melody_c && ! r.meta.disableMelody) {
 				
 				// Time ID
-				var t = positions.t;
 				var tIndex = positions.f50;
 				var frameID = positions.i50;
 				t = Math.round(t);
@@ -1743,6 +1860,38 @@ app.directive('chartLines', function() {
 					}
 				}
 			}
+			
+			// Select sequence
+			if (r.deck.sequences) {
+				var pinUnder, pinCount, profileData, profileKeys, iKey, profileKeysLength;
+				
+				// Loop
+				for (var index = 0; index < r.profiles.length; index++) {
+					// Focus names
+					pinUnder = 'pin-' + r.meta.widget.index + '-' + index + '-q-under';
+					pinCount = 'pin-' + r.meta.widget.index + '-' + index + '-q-count';
+					
+					if (t >= r.meta.ends[index]) {
+						updateSequencePin(null, pinUnder, pinCount);
+					} else {
+						// Data
+						profileData = r.profiles[index].currentData.events.q;
+						profileKeys = r.meta.sequenceKeys[index];
+						profileKeysLength = r.meta.sequenceKeysLength[index];
+						
+						// Find the sequence
+						iKey = 1;
+						while (iKey < profileKeysLength && t > profileKeys[iKey]) { iKey++; }
+						iKey--;
+						
+						if (profileData[profileKeys[iKey]] <= r.meta.sequenceThreshold) {
+							updateSequencePin(pinUnder, pinCount, null, y0, index);
+						} else {
+							updateSequencePin(pinCount, pinUnder, null, y0, index);
+						}
+					}
+				}
+			}
 		}
 		
 		function updateMelodyPin(prefixID, l, y0, index, t, frameID) {
@@ -1761,6 +1910,12 @@ app.directive('chartLines', function() {
 					value,
 					(r.deck.melody_c.unity && r.deck.melody_c.unity.unity) ? value + ' ' + r.deck.melody_c.unity : value);
 			}
+		}
+		
+		function updateSequencePin(labelToShow, labelToHide1, labelToHide2, y0, index) {
+			if (labelToShow) r.scope.focusMovePin(labelToShow, y0 + r.layout.profile.y[index] + (r.meta.vOverflow[index] / 2) + ((index == 1) ? r.meta.vOverflow[index] : 0), NaN);
+			if (labelToHide1) r.scope.focusMovePin(labelToHide1, NaN);
+			if (labelToHide2) r.scope.focusMovePin(labelToHide2, NaN);
 		}
 
 		// Bind

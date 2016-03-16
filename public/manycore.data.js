@@ -1,4 +1,10 @@
-/* global app */
+// Cosntants
+const CAPABILITY_STATE =	0;
+const CAPABILITY_SWITCH =	1;
+const CAPABILITY_LOCALITY =	2;
+const CAPABILITY_LOCK =		3;
+const CAPABILITY_MEMORY =	4;
+const CAPABILITY_COHERENCY =5;
 
 app.factory('colours', [function() {
 	// Gradient:
@@ -87,36 +93,46 @@ app.factory('facets', ['colours', function(colours) {
 	*/
 	
 	return {
-		h:		{ label: 'Thread',			unity: '',	cat: '',	attr: 'h',	colours: colours.sets.Grey,	color: colours.list.fGrey,	fcolor: colours.list.dGrey,	gcolor: colours.list.lGrey },
-		pn:		{ label: 'Process',			unity: '',	cat: '',	attr: 'pn',	colours: colours.sets.Grey,	color: colours.list.fGrey,	fcolor: colours.list.dGrey,	gcolor: colours.list.lGrey },
-		ct:		{ label: 'Core time',		unity: '',	cat: '',	attr: 'ct',	colours: colours.sets.Grey,	color: colours.list.fGrey,	fcolor: colours.list.dGrey,	gcolor: colours.list.lGrey },
+		h:		{ label: 'Thread',			attr: 'h',	unity: '', cat: '', colours: colours.sets.Grey,	color: colours.list.fGrey,	fcolor: colours.list.dGrey,	gcolor: colours.list.lGrey },
+		pn:		{ label: 'Process',			attr: 'pn',	unity: '', cat: '', colours: colours.sets.Grey,	color: colours.list.fGrey,	fcolor: colours.list.dGrey,	gcolor: colours.list.lGrey },
+		ct:		{ label: 'Core time',		attr: 'ct',	unity: '', cat: '', colours: colours.sets.Grey,	color: colours.list.fGrey,	fcolor: colours.list.dGrey,	gcolor: colours.list.lGrey },
 		
-		r:		{ label: 'Executing',			unity: 'ms',	cat: 'times',	attr: 'r',		colours: colours.sets.Green,	color: colours.list.nGreen,		fcolor: colours.list.dGreen,	gcolor: colours.list.fGreen },
-		y:	 	{ label: 'Ready',				unity: 'ms',	cat: 'times',	attr: 'y',		colours: colours.sets.Orange,	color: colours.list.nOrange,	fcolor: colours.list.dOrange,	gcolor: colours.list.fOrange },
-		b:	 	{ label: 'Standby',				unity: 'ms',	cat: 'times',	attr: 'b',		colours: colours.sets.Orange,	color: colours.list.nOrange,	fcolor: colours.list.dOrange,	gcolor: colours.list.fOrange },
-		yb: 	{ label: 'Ready',				unity: 'ms',	cat: 'times',	attr: 'yb',		colours: colours.sets.Orange,	color: colours.list.nOrange,	fcolor: colours.list.dOrange,	gcolor: colours.list.fOrange },
-		i: 		{ label: 'Idle core',			unity: 'ms',	cat: 'times',	attr: 'i',		colours: colours.sets.Blue,		color: colours.list.nBlue,		fcolor: colours.list.dBlue,		gcolor: colours.list.fBlue },
-		sys: 	{ label: 'system',				unity: 'ms',	cat: 'times',	attr: 'sys',	colours: colours.sets.Grey,		color: colours.list.lGrey,		fcolor: colours.list.nGrey,		gcolor: colours.list.white },
-		lw:		{ label: 'lock waiting',		unity: 'ms',	cat: 'times',	attr: 'lw',		colours: colours.sets.Yellow,	color: colours.list.nYellow,	fcolor: colours.list.dYellow,	gcolor: colours.list.fYellow },
-		uu: 	{ label: 'idle core',			unity: 'ms',	cat: 'times',	attr: 'uu',		colours: colours.sets.Blue,		color: colours.list.nBlue,		fcolor: colours.list.dBlue,		gcolor: colours.list.fBlue },
+		r:		{ label: 'Executing',			capability: CAPABILITY_STATE,		attr: 'r',		unity: 'ms', cat: 'times',	colours: colours.sets.Green,	color: colours.list.nGreen,		fcolor: colours.list.dGreen,	gcolor: colours.list.fGreen },
+		y:	 	{ label: 'Ready',				capability: CAPABILITY_STATE,		attr: 'y',		unity: 'ms', cat: 'times',	colours: colours.sets.Orange,	color: colours.list.nOrange,	fcolor: colours.list.dOrange,	gcolor: colours.list.fOrange },
+		b:	 	{ label: 'Standby',				capability: CAPABILITY_STATE,		attr: 'b',		unity: 'ms', cat: 'times',	colours: colours.sets.Orange,	color: colours.list.nOrange,	fcolor: colours.list.dOrange,	gcolor: colours.list.fOrange },
+		yb: 	{ label: 'Ready',				capability: CAPABILITY_STATE,		attr: 'yb',		unity: 'ms', cat: 'times',	colours: colours.sets.Orange,	color: colours.list.nOrange,	fcolor: colours.list.dOrange,	gcolor: colours.list.fOrange },
+		i: 		{ label: 'Idle core',			capability: CAPABILITY_STATE,		attr: 'i',		unity: 'ms', cat: 'times',	colours: colours.sets.Blue,		color: colours.list.nBlue,		fcolor: colours.list.dBlue,		gcolor: colours.list.fBlue },
+		w:		{ label: 'Waiting',				capability: CAPABILITY_STATE,		attr: 'w',		unity: 'ms', cat: 'times',	colours: colours.sets.Yellow },
+		sys: 	{ label: 'system',				capability: CAPABILITY_STATE,		attr: 'sys',	unity: 'ms', cat: 'times',	colours: colours.sets.Grey,		color: colours.list.lGrey,		fcolor: colours.list.nGrey,		gcolor: colours.list.white },
+		lw:		{ label: 'Lock waiting',		capability: CAPABILITY_LOCK,		attr: 'lw',		unity: 'ms', cat: 'times',	colours: colours.sets.Yellow,	color: colours.list.nYellow,	fcolor: colours.list.dYellow,	gcolor: colours.list.fYellow },
+		lh:		{ label: 'Lock holding',		capability: CAPABILITY_LOCK,		attr: 'lh',		unity: 'ms', cat: 'times',	colours: colours.sets.Turquoise },
 		
-		ipc:	{ label: 'Executing',			unity: '',	cat: 'locality',	attr: 'ipc',	colours: colours.sets.Green,	color: colours.list.nGreen,	fcolor: colours.list.dGreen,	gcolor: colours.list.fGreen },
-		miss:	{ label: 'Cache misses',		unity: '',	cat: 'locality',	attr: 'miss',	colours: colours.sets.Red,		color: colours.list.nRed,	fcolor: colours.list.dRed,		gcolor: colours.list.fRed },
-		tlb:	{ label: 'Address translation',	unity: '',	cat: 'locality',	attr: 'tlb',	colours: colours.sets.Red5,		color: colours.list.nRed5,	fcolor: colours.list.dRed5,		gcolor: colours.list.fRed5 },
-		l1:		{ label: 'Loading from L2',		unity: '',	cat: 'locality',	attr: 'l1',		colours: colours.sets.Red4,		color: colours.list.nRed4,	fcolor: colours.list.dRed4,		gcolor: colours.list.fRed4 },
-		l2:		{ label: 'Loading from L3',		unity: '',	cat: 'locality',	attr: 'l2',		colours: colours.sets.Red3,		color: colours.list.nRed3,	fcolor: colours.list.dRed3,		gcolor: colours.list.fRed3 },
-		l3:		{ label: 'Loading from RAM',	unity: '',	cat: 'locality',	attr: 'l3',		colours: colours.sets.Red2,		color: colours.list.nRed2,	fcolor: colours.list.dRed2,		gcolor: colours.list.fRed2 },
-		hpf:	{ label: 'Swapping',			unity: '',	cat: 'locality',	attr: 'hpf',	colours: colours.sets.Red1,		color: colours.list.nRed1,	fcolor: colours.list.dRed1,		gcolor: colours.list.fRed1 },
+		ipc:	{ label: 'Executing',			capability: CAPABILITY_LOCALITY,	attr: 'ipc',	unity: '', cat: 'locality',	colours: colours.sets.Green,	color: colours.list.nGreen,	fcolor: colours.list.dGreen,	gcolor: colours.list.fGreen },
+		miss:	{ label: 'Cache misses',		capability: CAPABILITY_LOCALITY,	attr: 'miss',	unity: '', cat: 'locality',	colours: colours.sets.Red,		color: colours.list.nRed,	fcolor: colours.list.dRed,		gcolor: colours.list.fRed },
+		tlb:	{ label: 'Address translation',	capability: CAPABILITY_LOCALITY,	attr: 'tlb',	unity: '', cat: 'locality',	colours: colours.sets.Red5,		color: colours.list.nRed5,	fcolor: colours.list.dRed5,		gcolor: colours.list.fRed5 },
+		l1:		{ label: 'Loading from L2',		capability: CAPABILITY_LOCALITY,	attr: 'l1',		unity: '', cat: 'locality',	colours: colours.sets.Red4,		color: colours.list.nRed4,	fcolor: colours.list.dRed4,		gcolor: colours.list.fRed4 },
+		l2:		{ label: 'Loading from L3',		capability: CAPABILITY_LOCALITY,	attr: 'l2',		unity: '', cat: 'locality',	colours: colours.sets.Red3,		color: colours.list.nRed3,	fcolor: colours.list.dRed3,		gcolor: colours.list.fRed3 },
+		l3:		{ label: 'Loading from RAM',	capability: CAPABILITY_LOCALITY,	attr: 'l3',		unity: '', cat: 'locality',	colours: colours.sets.Red2,		color: colours.list.nRed2,	fcolor: colours.list.dRed2,		gcolor: colours.list.fRed2 },
+		hpf:	{ label: 'Swapping',			capability: CAPABILITY_LOCALITY,	attr: 'hpf',	unity: '', cat: 'locality',	colours: colours.sets.Red1,		color: colours.list.nRed1,	fcolor: colours.list.dRed1,		gcolor: colours.list.fRed1 },
 		
-		s:		{ label: 'switches',		title: 'Context switches',			desc: desc_s,	list: 'switches',	unity: 'events',	cat: 'switches',	attr: 's',		colours: colours.sets.GBlue,	color: colours.list.nGBlue,		fcolor: colours.list.dGBlue },
-		m:		{ label: 'migrations',		title: 'Thread migrations',			desc: desc_m,	list: 'migrations',	unity: 'events',	cat: 'migrations',	attr: 'm',		colours: colours.sets.GViol,	color: colours.list.nGViol,		fcolor: colours.list.dGViol },
-		ls:		{ label: 'lock success',	title: 'Lock without contention',	desc: desc_ls,	list: 'slocks',		unity: 'events',	cat: 'locks',		attr: 'ls',		colours: colours.sets.Turquoise,	color: colours.list.fTurquoise,	fcolor: colours.list.dTurquoise,gcolor: colours.list.lTurquoise },
-		lf:		{ label: 'lock failure',	title: 'Lock with contention',		desc: desc_lf,	list: 'flocks',		unity: 'events',	cat: 'locks',		attr: 'lf',		colours: colours.sets.Fuschia,	color: colours.list.fFuschia,	fcolor: colours.list.dFuschia,	gcolor: colours.list.lFuschia },
+		s:		{ label: 'Context switches',		capability: CAPABILITY_SWITCH,	attr: 's',		unity: 'events', cat: 'switches',	list: 'switches',	colours: colours.sets.GBlue },
+		m:		{ label: 'Thread migrations',		capability: CAPABILITY_SWITCH,	attr: 'm',		unity: 'events', cat: 'migrations',	list: 'migrations',	colours: colours.sets.GViol },
+		ls:		{ label: 'Lock without contention',	capability: CAPABILITY_LOCK,	attr: 'ls',		unity: 'events', cat: 'locks',		list: 'slocks',		colours: colours.sets.Turquoise },
+		lf:		{ label: 'Lock with contention',	capability: CAPABILITY_LOCK,	attr: 'lf',		unity: 'events', cat: 'locks',		list: 'flocks',		colours: colours.sets.Fuschia },
+		lr:		{ label: 'Lock release',			capability: CAPABILITY_LOCK,	attr: 'lr',		unity: 'events', cat: 'locks',							colours: colours.sets.Turquoise },
 		
-		p:		{ label: 'Parallel',		unity: '',	attr: 'p',	colours: colours.sets.GreenYlw },
-		q:		{ label: 'Parallelized',	unity: '',	attr: 'q',	colours: colours.sets.GreenYlw },
-		q_s:	{ label: 'sequential',		title: 'Sequential sequence',	desc: desc_q_s,	unity: '', cat: '', attr: '',	colours: colours.sets.Orange,	color: colours.list.fOrange,	fcolor: colours.list.dOrange,	gcolor: colours.list.lOrange },
-		q_p:	{ label: 'parallel',		title: 'Parallel sequence',		desc: desc_q_p,	unity: '', cat: '', attr: '',	colours: colours.sets.Green,	color: colours.list.fGreen,		fcolor: colours.list.dGreen,	gcolor: colours.list.lGreen },
+		p:		{ label: 'Parallel',				capability: CAPABILITY_STATE,	attr: 'p',	unity: '',			colours: colours.sets.GreenYlw },
+		q:		{ label: 'Parallelized',			capability: CAPABILITY_STATE,	attr: 'q',	unity: '',			colours: colours.sets.GreenYlw },
+		q_s:	{ label: 'Sequential sequence',		capability: CAPABILITY_STATE,	attr: '',	unity: '', cat: '', colours: colours.sets.Orange },
+		q_p:	{ label: 'Parallel sequence',		capability: CAPABILITY_STATE,	attr: '',	unity: '', cat: '', colours: colours.sets.Green },
+		
+		e:		{ label: 'Memory bandwidth',			capability: CAPABILITY_MEMORY,	attr: 'e',	unity: 'MB',	colours: colours.sets.Magenta },
+		ue:		{ label: 'Available memory bandwidth',	capability: CAPABILITY_MEMORY,	attr: 'ue',	unity: 'MB',	colours: colours.sets.Blue },
+		se:		{ label: 'System memory bandwidth',		capability: CAPABILITY_MEMORY,	attr: 'se',	unity: 'MB',	colours: colours.sets.Grey },
+		
+		il:		{ label: 'Cache line invalidations',	capability: CAPABILITY_COHERENCY,	attr: 'il',		unity: '',	colours: colours.sets.Red3 },
+		il1:	{ label: 'L1 cache line invalidations',	capability: CAPABILITY_COHERENCY,	attr: 'il1',	unity: '',	colours: colours.sets.Red4 },
+		il2:	{ label: 'L2 cache line invalidations',	capability: CAPABILITY_COHERENCY,	attr: 'il2',	unity: '',	colours: colours.sets.Red2 },
 	};
 }]);
 
@@ -227,31 +243,164 @@ app.factory('decks', ['facets', 'colours', function(facets, colours) {
 			return buildThreads(profile);
 		}
 	}
-	function buildCores(profile) {
+	function buildPhysicalCores(profile) {
 		var begin = profile.currentData.info.timeMin;
 		var end = profile.currentData.info.duration;
 		var lines = [];
-		for (var l = 0; l < profile.hardware.data.threads; l++)
+		for (var l = 0; l < profile.hardware.data.pcores; l++)
 			lines.push({ id: l, l: 'core ' + l, s: begin, e: end });
 		return lines;
 	}
-	function buildCoresAnonymously(profile) {
+	function buildLogicalCores(profile) {
 		var begin = profile.currentData.info.timeMin;
 		var end = profile.currentData.info.duration;
 		var lines = [];
-		for (var l = 0; l < profile.hardware.data.threads; l++)
+		for (var l = 0; l < profile.hardware.data.lcores; l++)
+			lines.push({ id: l, l: 'core ' + l, s: begin, e: end });
+		return lines;
+	}
+	function buildLogicalCoresAnonymously(profile) {
+		var begin = profile.currentData.info.timeMin;
+		var end = profile.currentData.info.duration;
+		var lines = [];
+		for (var l = 0; l < profile.hardware.data.lcores; l++)
 			lines.push({ id: l, l: 'core', s: begin, e: end });
 		return lines;
 	}
 
-	var limit = 	{ color: colours.list.fGrey, fcolor: colours.list.dGrey, gcolor: colours.list.lGrey };
-	var text = 		{ color: colours.list.black, fcolor: colours.list.black, gcolor: colours.list.black };
+	var limit = 	{ colours: colours.sets.Grey,	color: colours.list.fGrey, fcolor: colours.list.dGrey, gcolor: colours.list.lGrey };
+	var text = 		{ 								color: colours.list.black, fcolor: colours.list.black, gcolor: colours.list.black };
 
 	// Fruit salad
 	var m =		JSON.parse(JSON.stringify(facets.m));
 	m.colors = ['#b6e3bc', '#b6e3da', '#b6cee3', '#bcb6e3', '#dab6e3', '#e3b6ce', '#e3bcb6', '#e3dab6'];
 	
 	return {
+		cacheBreackdown: {
+			handling: {
+				time: TIME_NONE,
+			},
+			graph : {
+				h:		limit,
+				plots:	[facets.pn, facets.h, facets.ct, facets.ipc, facets.tlb, facets.l1, facets.l2, facets.l3, facets.hpf],
+				c_scale:[facets.ipc.colours.n, facets.miss.colours.n, facets.miss.colours.n]
+			},
+			legend: {
+				axis: [
+				],
+				data: [
+				],
+				options: { disablePrelist: true }
+			},
+			clues: [],
+			settings: [
+				{ property: 'colorMode', value: 0, type: 'select', label: 'Color by', choices: ['good <--> poor locality', 'process', 'thread'] },
+				{ property: 'colorThreshold', value: 20, type: 'range', label: 'Locality threshold', unit: '%', min: 5, max: 95, step: 5, depends: ['colorMode', 0] },
+			]
+		},
+		cacheInvalidations: {
+			handling: {
+				time: TIME_NONE,
+			},
+			graph : {
+				levels:	[
+					{
+						l: 'cache L1',
+						f: facets.il1,
+						count: function(profile) { return profile.hardware.data.l1caches; }, 
+					}, {
+						l: 'cache L2',
+						f: facets.il2,
+						count: function(profile) { return profile.hardware.data.l2caches; }, 
+					}
+				]
+			},
+			legend: {
+				axis: [],
+				data: [],
+				options: { disablePrelist: true }
+			},
+			clues: [],
+			settings: []
+		},
+		cacheInvalid: {
+			handling: {
+				time:	TIME_PROFILE,
+				v:		[facets.il1, facets.il2]
+			},
+			graph : {
+				v:			[facets.il1, facets.il2],
+				limit:		limit,
+				limitLabel:	't. value',
+				useFrameIstead: true
+			},
+			data: [facets.il1, facets.il2],
+			focus: [facets.il1, facets.il2],
+			legend: {
+				axis: [
+					{ b: '-', t: 't. value',	d: 'typical value of expected cache line invalidations',	f: limit, sv: 'calibration', sd: 'cache line invalidations by ms' },
+					{ b: 'n×', t: 'excess',		d: 'more cache line invalidations than expected (multiple of the typical value)',			f: limit },
+				],
+				data: [
+					{ b: '▮', 	d: 'number line invalidations in L2 cache',	f: facets.il2 },
+					{ b: '▮', 	d: 'number line invalidations in L1 cache',	f: facets.il1 }
+				]
+			},
+			clues: [],
+			plans: [
+				{ id: 1, label: 'log₂', property: 'useLogScale' },
+				{ id: 2, label: 'linear', property: 'useLinearScale' },
+			],
+			params: [
+				{ property: 'timeGroup', value: 50 }
+			],
+			settings: [
+				{ property: 'calibration', type: 'pnumeric', check: 'positive', label: 'Typical values', unit: 'line invalidations', psource: function(profile) { return 0.1 * profile.hardware.data.cycles * (profile.hardware.data.l1caches + profile.hardware.data.l2caches - 2); } },
+				{ property: 'highlightOverflow', value: false, type: 'flag', label: 'High zone', desc: 'shows the high area, over the typical value' }
+			]
+		},
+		cacheInvalidL1: {
+			handling: {
+				time: TIME_PROFILE,
+			},
+			graph: {
+				v:		[facets.il1],
+				limit:	limit
+			},
+			data: [facets.il1, facets.il2],
+			focus: [facets.il1],
+			legend: {
+				axis: [
+					{ b: '%', t: '[Y] Percent',	d: 'theoretical maximum of possible L1 cache invalidations', c: colours.list.fGrey}
+				],
+				data: [
+					{ b: '▮', 	d: 'number line invalidations in L1 cache',	f: facets.il1 }
+				]
+			},
+			clues: [],
+			settings: []
+		},
+		cacheInvalidL2: {
+			handling: {
+				time: TIME_PROFILE,
+			},
+			graph: {
+				v:		[facets.il2],
+				limit:	limit
+			},
+			data: [facets.il1, facets.il2],
+			focus: [facets.il2],
+			legend: {
+				axis: [
+					{ b: '%', t: '[Y] Percent',	d: 'theoretical maximum of possible L2 cache invalidations', c: colours.list.fGrey}
+				],
+				data: [
+					{ b: '▮', 	d: 'number line invalidations in L2 cache',	f: facets.il2 }
+				]
+			},
+			clues: [],
+			settings: []
+		},
 		cacheMisses: {
 			handling: {
 				time: TIME_PROFILE,
@@ -278,13 +427,40 @@ app.factory('decks', ['facets', 'colours', function(facets, colours) {
 			clues: [],
 			settings: []
 		},
+		coreBandwidth: {
+			handling: {
+				time: TIME_PROFILE,
+			},
+			graph : {
+				h:			limit,		// threads (color)
+				lines:		buildPhysicalCores,
+				melody_c:	facets.e,
+				melody_c_max:	function(profile, timeStep) { return Math.round(profile.hardware.data.bandwidth * timeStep / profile.hardware.data.pcores / 1048576); },
+				// in theory, a single core could use all the bandwidth. However, for the graph,
+				// we devided the max by the number of physical cores (half number of cores).
+				// This is totally arbitrary.
+			},
+			data: [facets.e],
+			legend: {
+				axis: [
+					{ b: '⊢', f: limit,	t: '[Y] Cores',	d: 'each line represents a core' }
+				],
+				data: [
+					{ b: '▮', f: facets.e,	d: 'memory bandwidth used by the program' },
+				]
+			},
+			clues: [],
+			settings: [
+				{ property: 'melodyHeight', value: 9, type: 'range', label: 'Inactivity height', unit: 'pixels', min: 6, max: 12, step: 1 }
+			]
+		},
 		coreIdle: {
 			handling: {
 				time: TIME_PROFILE,
 			},
 			graph : {
 				h:			limit,		// threads (color)
-				lines:		buildCores,
+				lines:		buildLogicalCores,
 				melody_c:	facets.i,
 			},
 			data: [facets.i, facets.r],
@@ -293,7 +469,7 @@ app.factory('decks', ['facets', 'colours', function(facets, colours) {
 					{ b: '⊢', f: limit,	t: '[Y] Cores',	d: 'each line represents a core' }
 				],
 				data: [
-					{ b: '▮', t: 'Idle', d: 'time spend by the core waiting a thread to run (other processes are considfred as idle time)',	 c: colours.list.fGrey }
+					{ b: '▮', f: facets.i, t: 'Idle', d: 'time spend by the core waiting a thread to run (other processes are considfred as idle time)' }
 				]
 			},
 			clues: [],
@@ -356,9 +532,31 @@ app.factory('decks', ['facets', 'colours', function(facets, colours) {
 				{ id: 2, label: 'linear', property: 'useLinearScale' },
 			],
 			settings: [
-				{ property: 'calibration', type: 'pnumeric', check: 'positive', label: 'Typical values', unit: 'lock acquisitions', psource: function(profile) { return profile.hardware.data.threads * (profile.hardware.calibration.ls + profile.hardware.calibration.lf); } },
-				{ property: 'timeGroup', value: 50, type: 'range', label: 'Group by', unit: 'ms', min: 10, max: 50, step: 10 }
+				{ property: 'calibration', type: 'pnumeric', check: 'positive', label: 'Typical values', unit: 'lock acquisitions', psource: function(profile) { return profile.hardware.data.lcores * (profile.hardware.calibration.ls + profile.hardware.calibration.lf); } },
+				{ property: 'timeGroup', value: 50, type: 'range', label: 'Group by', unit: 'ms', min: 10, max: 50, step: 10 },
+				{ property: 'highlightOverflow', value: false, type: 'flag', label: 'High zone', desc: 'shows the high area, over the typical value' }
 			]
+		},
+		memBandwidth: {
+			handling: {
+				time: TIME_PROFILE,
+			},
+			graph: {
+				v:		[facets.e, facets.ue, facets.se],
+				limit:	limit
+			},
+			data: [facets.e],
+			focus: [facets.e],
+			legend: {
+				axis: [],
+				data: [
+					{ b: '▮', f: facets.e,	d: 'memory bandwidth used by the program' },
+					{ b: '▮', f: facets.ue,	d: 'available memory bandwidth' },
+					{ b: '▮', f: facets.se,	d: 'non-available memory bandwidth, used by the system and other programs' }
+				]
+			},
+			clues: [],
+			settings: []
 		},
 		threadChains: {
 			handling: {
@@ -427,8 +625,9 @@ app.factory('decks', ['facets', 'colours', function(facets, colours) {
 				{ id: 2, label: 'linear', property: 'useLinearScale' },
 			],
 			settings: [
-				{ property: 'calibration', type: 'pnumeric', check: 'positive', label: 'Typical values', unit: 'thread migrations', psource: function(profile) { return profile.hardware.data.threads * profile.hardware.calibration.m; } },
-				{ property: 'timeGroup', value: 50, type: 'range', label: 'Group by', unit: 'ms', min: 10, max: 50, step: 10 }
+				{ property: 'calibration', type: 'pnumeric', check: 'positive', label: 'Typical values', unit: 'thread migrations', psource: function(profile) { return profile.hardware.data.lcores * profile.hardware.calibration.m; } },
+				{ property: 'timeGroup', value: 50, type: 'range', label: 'Group by', unit: 'ms', min: 10, max: 50, step: 10 },
+				{ property: 'highlightOverflow', value: false, type: 'flag', label: 'High zone', desc: 'shows the high area, over the typical value' }
 			]
 		},
 		threadSwitches: {
@@ -460,8 +659,9 @@ app.factory('decks', ['facets', 'colours', function(facets, colours) {
 				{ id: 2, label: 'linear', property: 'useLinearScale' },
 			],
 			settings: [
-				{ property: 'calibration', type: 'pnumeric', check: 'positive', label: 'Typical values', unit: 'context switches', psource: function(profile) { return profile.hardware.data.threads * profile.hardware.calibration.s; } },
-				{ property: 'timeGroup', value: 50, type: 'range', label: 'Group by', unit: 'ms', min: 10, max: 50, step: 10 }
+				{ property: 'calibration', type: 'pnumeric', check: 'positive', label: 'Typical values', unit: 'context switches', psource: function(profile) { return profile.hardware.data.lcores * profile.hardware.calibration.s; } },
+				{ property: 'timeGroup', value: 50, type: 'range', label: 'Group by', unit: 'ms', min: 10, max: 50, step: 10 },
+				{ property: 'highlightOverflow', value: false, type: 'flag', label: 'High zone', desc: 'shows the high area, over the typical value' }
 			]
 		},
 		threadStates: {
@@ -566,7 +766,7 @@ app.factory('decks', ['facets', 'colours', function(facets, colours) {
 			},
 			graph : {
 				h:			limit,		// threads (color)
-				lines:		buildCoresAnonymously,
+				lines:		buildLogicalCoresAnonymously,
 				sequences:	{ under: facets.q_s, count: facets.q_p }
 			},
 			data: [facets.r, facets.i],
@@ -591,28 +791,6 @@ app.factory('decks', ['facets', 'colours', function(facets, colours) {
 				{ property: 'disableSequenceBackgound', value: false, type: 'flag', label: 'Parallel sequences', desc: 'hide backgound sequences (parallel/sequential)' },
 				{ property: 'sequenceThreshold', value: 1, type: 'range', label: 'Parallel threshold', unit: 'running threads', min: 0, max: 3, step: 1 },
 			]
-		},
-		pCoordDL: {
-			handling: {
-				time: TIME_NONE,
-			},
-			graph : {
-				h:		limit,
-				plots:	[facets.pn, facets.h, facets.ct, facets.ipc, facets.tlb, facets.l1, facets.l2, facets.l3, facets.hpf],
-				c_scale:[facets.ipc.colours.n, facets.miss.colours.n, facets.miss.colours.n]
-			},
-			legend: {
-				axis: [
-				],
-				data: [
-				],
-				options: { disablePrelist: true }
-			},
-			clues: [],
-			settings: [
-				{ property: 'colorMode', value: 0, type: 'select', label: 'Color by', choices: ['good <--> poor locality', 'process', 'thread'] },
-				{ property: 'colorThreshold', value: 20, type: 'range', label: 'Locality threshold', unit: '%', min: 5, max: 95, step: 5, depends: ['colorMode', 0] },
-			]
 		}
 	};
 }]);
@@ -628,13 +806,18 @@ app.factory('widgets', ['decks', function(decks) {
 	//	- stats:		data and UI computed for focus or not
 	
 	return {
-		cacheBreackdown:	{ id: id(),	v: 3, file: 'chart-d3-pcoords',	deck: decks.pCoordDL,			wide: true,		title: 'Breakdown of time spent on locality misses',				desc: ''},
-		cacheInvalid:		{ id: id(),	v: 3, file: 'chart-todo',		deck: null,						wide: true,		title: 'Cache misses from updating shared data',					desc: ''},
+		cacheBreackdown:	{ id: id(),	v: 3, file: 'chart-d3-pcoords',	deck: decks.cacheBreackdown,	wide: true,		title: 'Breakdown of time spent on locality misses',				desc: ''},
+		cacheInvalidations:	{ id: id(),	v: 3, file: 'chart-d3-caches',	deck: decks.cacheInvalidations,	wide: true,		title: 'Cache line invalidations',									desc: ''},
+		cacheInvalid:		{ id: id(),	v: 5, file: 'chart-units',		deck: decks.cacheInvalid,		wide: false,	title: 'Cache misses from updating shared data',					desc: ''},
+		cacheInvalidL1:		{ id: id(),	v: 5, file: 'chart-percent',	deck: decks.cacheInvalidL1,		wide: false,	title: 'Percentage of time spent on L1 cache line invalidations',	desc: ''},
+		cacheInvalidL2:		{ id: id(),	v: 5, file: 'chart-percent',	deck: decks.cacheInvalidL2,		wide: false,	title: 'Percentage of time spent on L2 cache line invalidations',	desc: ''},
 		cacheMisses:		{ id: id(),	v: 3, file: 'chart-percent',	deck: decks.cacheMisses,		wide: false,	title: 'Percentage of time spent on locality misses',				desc: ''},
+		coreBandwidth:		{ id: id(),	v: 5, file: 'chart-lines',		deck: decks.coreBandwidth,		wide: false,	title: 'Remote memory access by core',								desc: 'Memory bandwidth'},
 		coreIdle:			{ id: id(),	v: 3, file: 'chart-lines',		deck: decks.coreIdle,			wide: false,	title: 'Idle cores',												desc: 'Times that cores are idle'},
 		coreSequences:		{ id: id(),	v: 3, file: 'chart-lines',		deck: decks.sequences,			wide: false,	title: 'Single thread execution phases',							desc: 'alternating sequential/parallel execution'},
 		lockCounts:			{ id: id(),	v: 4, file: 'chart-units',		deck: decks.lockCounts,			wide: false,	title: 'Lock contentions',											desc: 'Locking with and without contention'},
 		lockContentions:	{ id: id(),	v: 4, file: 'chart-percent',	deck: decks.lockContentions,	wide: false,	title: 'Time waiting for a lock',									desc: ''},
+		memBandwidth:		{ id: id(),	v: 5, file: 'chart-percent',	deck: decks.memBandwidth,		wide: false,	title: 'Remote memory access',										desc: 'Memory bandwidth'},
 		threadChains:		{ id: id(),	v: 4, file: 'chart-lines',		deck: decks.threadChains,		wide: false,	title: 'Chains of dependencies on locks',							desc: 'synchronisations and waiting between threads'},
 		threadFruitSalad:	{ id: id(),	v: 3, file: 'chart-threads',	deck: decks.threadFruitSalad,	wide: false,	title: 'Migrations by thread',										desc: 'creation, running, moving between cores, termination'},
 		threadLocks:		{ id: id(),	v: 4, file: 'chart-threads',	deck: decks.threadLocks,		wide: false,	title: 'Time each thread spends waiting for locks',					desc: ''},
@@ -650,12 +833,14 @@ app.factory('strips', ['facets', function(facets) {
 	var example_ok = 'A big shape means an under-exploitation of resources.';
 	var example_bad = 'A non minimal shape means a problem or a misusing of resources.';
 	return {
-		r:		{ title: 'Running',				facet: facets.r,	reverse: false,	description: 'This graph represents the time spent in thread execution.', example: example_good },
-		uu:		{ title: 'Unused cores',		facet: facets.i,	reverse: true,	description: 'This graph shows the time spend by the core waiting a thread to run.', example: example_ok },
-		yb:		{ title: 'Waiting a core',		facet: facets.yb,	reverse: false,	description: 'This graph shows the time spent by threads while waiting a core.', example: example_bad },
-		lw:		{ title: 'Waiting a ressource',	facet: facets.lw,	reverse: false,	description: 'This graph represents the time spent by threads while waiting for a lock.', example: example_bad },
-		q:		{ title: 'Parallelisation',		facet: facets.p,	reverse: false,	description: 'This graph represents the parallelised state of the cores, at least two threads running simultaneously.', example: example_good },
-		miss:	{ title: 'Cache misses',		facet: facets.miss,	reverse: false,	description: 'This graph represents the time spent on locality misses.', example: example_bad }
+		r:		{ title: 'Running',					facet: facets.r,	reverse: false,	description: 'This graph represents the time spent in thread execution.', example: example_good },
+		i:		{ title: 'Unused cores',			facet: facets.i,	reverse: true,	description: 'This graph shows the time spend by the core waiting a thread to run.', example: example_ok },
+		yb:		{ title: 'Waiting for a core',		facet: facets.yb,	reverse: false,	description: 'This graph shows the time spent by threads while waiting a core.', example: example_bad },
+		lw:		{ title: 'Waiting for a ressource',	facet: facets.lw,	reverse: false,	description: 'This graph represents the time spent by threads while waiting for a lock.', example: example_bad },
+		q:		{ title: 'Parallelisation',			facet: facets.p,	reverse: false,	description: 'This graph represents the parallelised state of the cores, at least two threads running simultaneously.', example: example_good },
+		miss:	{ title: 'Cache misses',			facet: facets.miss,	reverse: false,	description: 'This graph represents the time spent on locality misses.', example: example_bad },
+		e:		{ title: 'Memory bandwidth',		facet: facets.e,	reverse: false,	description: 'This graph shows the amount memory bandwidth used.', example: example_bad },
+		il:		{ title: 'Cache coherency',			facet: facets.il,	reverse: false,	description: 'This graph shows the amount of invalidations of shared memory by cores.', example: example_bad }
 	};
 }]);
 
@@ -680,7 +865,7 @@ app.factory('categories', ['widgets', 'strips', 'facets',  function(widgets, str
 		tag: 'tg', cat: 'tg', label: 'Task granularity', title: 'Task granularity', icon: 'sliders', enabled: true,
 		description: 'This category helps about the challenge to find enough parallelism to keep the machine busy.',
 		example: 'If there are too many threads, the cost of these overheads can exceed the benefits.',
-		strips: [strips.yb, strips.uu],
+		strips: [strips.yb, strips.i],
 		gauges: [[yb, facets.i], [facets.s, facets.m]], /* facets.r, */
 		widgets: [widgets.threadStates, widgets.threadSwitches, widgets.threadMigrations, widgets.threadFruitSalad]
 	};
@@ -696,9 +881,9 @@ app.factory('categories', ['widgets', 'strips', 'facets',  function(widgets, str
 		tag: 'ds', cat: 'ds', label: 'Data sharing', title: 'Data sharing', icon: 'exchange', enabled: true,
 		description: 'This category helps about the data shared between cores.',
 		example: 'These transfers take time, with the result that there is typically a cost to data sharing, particularly when shared variables and data structures are modified.',
-		strips: [],
+		strips: [strips.il],
 		gauges: [[lw, miss]],
-		widgets: [widgets.lockContentions, widgets.cacheInvalid, widgets.cacheMisses]
+		widgets: [widgets.lockContentions, widgets.cacheMisses, widgets.cacheInvalidL1, widgets.cacheInvalidL2, widgets.cacheInvalid, widgets.cacheInvalidations, widgets.memBandwidth, widgets.coreBandwidth]
 	};
 	var lb = {
 		tag: 'lb', cat: 'lb', label: 'Load balancing', title: 'Load balancing', icon: 'list-ol', enabled: true,
@@ -720,9 +905,9 @@ app.factory('categories', ['widgets', 'strips', 'facets',  function(widgets, str
 		tag: 'rs', cat: 'rs', label: 'Resource sharing', title: 'Resource sharing', icon: 'sitemap', enabled: true,
 		description: 'This category helps about sharing resources between all threads.',
 		example: 'For example, all cores will typically share a single connection to main memory.',
-		strips: [],
+		strips: [strips.e],
 		gauges: [],
-		widgets: [widgets.lockCounts, widgets.cacheMisses]
+		widgets: [widgets.memBandwidth, widgets.coreBandwidth, widgets.lockCounts, widgets.cacheMisses, widgets.cacheInvalidL1, widgets.cacheInvalidL2, widgets.cacheInvalid, widgets.cacheInvalidations]
 	};
 	var io = {
 		tag: 'io', cat: 'io', label: 'Input/Output', title: 'Input/Output', icon: 'plug', enabled: false,

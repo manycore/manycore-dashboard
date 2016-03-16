@@ -7,6 +7,10 @@ app.controller('NavbarController', ['$scope', '$rootScope', '$stateParams', 'cat
 	// Profiles
 	$scope.profiles = []; //selected;
 	
+	// Dash
+	$scope.isDashSelected = false;
+	$scope.isRawDashSelected = false;
+	
 	// Details
 	$scope.categories = categories.all;
 	$scope.selectedCategory = null;
@@ -19,9 +23,18 @@ app.controller('NavbarController', ['$scope', '$rootScope', '$stateParams', 'cat
 	/**
 	 * Details - collapse tabs
 	 */
-	$scope.collapseAll = function() {
+	$scope.collapseAllTabs = function() {
 		Array.prototype.forEach.call(document.getElementsByClassName('uib-tab-collapse-hide'), function(element) {
 			angular.element(element).isolateScope().active = true;
+		}, this);
+	}
+	
+	/**
+	 * Details - collapse tabs
+	 */
+	$scope.collapseAllAccordions = function() {
+		Array.prototype.forEach.call(document.getElementsByClassName('panel-accordion'), function(element) {
+			angular.element(element).isolateScope().isOpen = false;
 		}, this);
 	}
 
@@ -34,11 +47,9 @@ app.controller('NavbarController', ['$scope', '$rootScope', '$stateParams', 'cat
 	 */
 	$rootScope.$on('$stateChangeStart',
 		function(event, toState, toParams, fromState, fromParams) {
-			if (toState.name == 'dashboard') {
-				$scope.selectedCategory = null;
-			} else {
-				$scope.selectedCategory = categories[toParams.cat];
-			}
+			$scope.isDashSelected = (toState.name == 'dashboard');
+			$scope.isRawDashSelected = (toState.name == 'raw');
+			$scope.selectedCategory = (toState.name == 'detail') ? categories[toParams.cat] : null;
 		});
 	
 	
@@ -46,6 +57,13 @@ app.controller('NavbarController', ['$scope', '$rootScope', '$stateParams', 'cat
 	/************************************************/
 	/* Functions - Graphical						*/
 	/************************************************/
+	
+	/**
+	 * Flag - detail
+	 */
+	$scope.hasProfileSelected = function() {
+		return $rootScope.selectedIDs.length > 0;
+	};
 	
 	/**
 	 * Flag - detail

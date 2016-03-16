@@ -6,6 +6,8 @@ app.controller('AdminController', ['$scope', '$rootScope', '$http', 'profileServ
 	$scope.profiles = profileService.all;
 	$scope.p_exclude_sm = [5, 9, 31, 32, 33, 34, 35, 36, 37, 38, 39];
 	
+	console.log($scope.profiles);
+	
 	// Versions
 	$scope.versions = null;
 	$scope.versions_expected = null;
@@ -17,6 +19,8 @@ app.controller('AdminController', ['$scope', '$rootScope', '$http', 'profileServ
 	
 	// Waiting
 	$scope.waiting = 0;
+	$scope.selectedTab = null;
+	$scope.couldRefresh = false;
 	
 	
 	
@@ -40,6 +44,8 @@ app.controller('AdminController', ['$scope', '$rootScope', '$http', 'profileServ
 	 * Text - version
 	 */
 	$scope.renderVersion = function(profile) {
+		console.log(profile, $scope.profiles);
+		
 		var v = $scope.versions[profile.id];
 		return (!isNaN(parseFloat(v)) && isFinite(v)) ? v : "no cache";
 	};
@@ -53,7 +59,7 @@ app.controller('AdminController', ['$scope', '$rootScope', '$http', 'profileServ
 	 */
 	$scope.mean = function(profile, attr, round) {
 		if ($scope.stats[attr][profile.id])
-			return Math.round(round * $scope.stats[attr][profile.id] / profile.hardware.data.threads / $scope.stats.durations[profile.id]) / round;
+			return Math.round(round * $scope.stats[attr][profile.id] / profile.hardware.data.lcores / $scope.stats.durations[profile.id]) / round;
 		else
 			return '';
 	};
@@ -69,13 +75,75 @@ app.controller('AdminController', ['$scope', '$rootScope', '$http', 'profileServ
 		
 		$scope.profiles.forEach(function (profile) {
 			if ($scope.stats[attr][profile.id] && excludes.indexOf(profile.id) < 0) {
-				sum += $scope.stats[attr][profile.id] / profile.hardware.data.threads / $scope.stats.durations[profile.id];
+				sum += $scope.stats[attr][profile.id] / profile.hardware.data.lcores / $scope.stats.durations[profile.id];
 				count++;
 			}
 		});
 		
 		return Math.round(round * sum / count) / round;
 	};
+	
+	
+	/************************************************/
+	/* Functions - UI Tab selection					*/
+	/************************************************/
+	/**
+	 * Tab - Select - Roadmap
+	 */
+	$scope.selectRoadmap = function() {
+		$scope.selectedTab = 1;
+		$scope.couldRefresh = false;
+	}
+	
+	/**
+	 * Tab - Select - Cache
+	 */
+	$scope.selectCache = function() {
+		if (! $scope.versions_loaded) reloadCacheVersions();
+		$scope.selectedTab = 2;
+		$scope.couldRefresh = true;
+	}
+	
+	/**
+	 * Tab - Select - Stats
+	 */
+	$scope.selectStats = function() {
+		if (! $scope.stats_loaded) reloadStats();
+		$scope.selectedTab = 3;
+		$scope.couldRefresh = true;
+	}
+	
+	
+	
+	/************************************************/
+	/* Functions - UI Tab actions					*/
+	/************************************************/
+	/**
+	 * Refresh
+	 */
+	$scope.refresh = function(id) {
+		if ($scope.selectedTab == 2) {
+			reloadCacheVersions();
+		} else if ($scope.selectedTab == 3) {
+			reloadStats();
+		}
+	};
+	 
+	 
+	/**
+	 * Reset cache
+	 */
+	$scope.resetCache = function(id) {
+		if ($scope.isWaiting()) return;
+		$scope.waiting++;
+		$http.get('/service/admin/cache-reload/' + id).success(function(data) {
+			for(var i in data.versions){
+				$scope.versions[i] = data.versions[i];
+			}
+			$scope.waiting--;
+		});
+	};
+	
 	
 	
 	/************************************************/
@@ -99,14 +167,12 @@ app.controller('AdminController', ['$scope', '$rootScope', '$http', 'profileServ
 	/**
 	 * Load cache versions
 	 */
-	$scope.loadCacheVersions = function() {
-		if (! $scope.versions_loaded) $scope.reloadCacheVersions();
-	};
-	$scope.reloadCacheVersions = function() {
+	function reloadCacheVersions() {
 		$scope.waiting++;
 		loadProfiles(loadCacheVersions);
 	};
 	function loadCacheVersions() {
+		console.log($scope.profiles);
 		$http.get('/service/admin/cache-versions').success(function(data) {
 			$scope.versions = data.versions;
 			$scope.versions_expected = data.expected;
@@ -117,28 +183,9 @@ app.controller('AdminController', ['$scope', '$rootScope', '$http', 'profileServ
 	 
 	 
 	/**
-	 * Reset cache
-	 */
-	$scope.resetCache = function(id) {
-		if ($scope.isWaiting()) return;
-		$scope.waiting++;
-		$http.get('/service/admin/cache-reload/' + id).success(function(data) {
-			for(var i in data.versions){
-				$scope.versions[i] = data.versions[i];
-			}
-			$scope.waiting--;
-		});
-	};
-	
-	 
-	 
-	/**
 	 * Load stats
 	 */
-	$scope.loadStats = function() {
-		if (! $scope.stats_loaded) $scope.reloadStats();
-	};
-	$scope.reloadStats = function() {
+	function reloadStats() {
 		$scope.waiting++;
 		loadProfiles(loadStats);
 	};

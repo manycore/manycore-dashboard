@@ -7,7 +7,7 @@ var fs = require('fs');
 /************************************************/
 /* Constants									*/
 /************************************************/
-var VERSION = 71;
+var VERSION = 80;
 var PARALLEL_THRESHOLD = 2;
 
 /************************************************/
@@ -30,24 +30,68 @@ var hardRoman = {
 		ram:	'12 279 MB'
 	},
 	data: {
-		cores:		4,			// TO REMOVE #cores
-		threads:	8,			// TO REMOVE #theads (hyperthreading)
-		type:		64,			// TO REMOVE 32 or 64 bits
-
 		arch:		'x86-64',	// architecture 32 or 64 bits
 		pcores:		4,			// number of physical cores
 		lcores:		8,			// number of logical cores
+		l1caches:	4,			// number of caches L1
+		l2caches:	2,			// number of caches L2
+		l3caches:	1,			// number of caches L3
 		clock:		3.06,		// clock speed in GHz
+		cycles:		3060000,	// max cycles by ms
 		l1:			32,			// cache L1 in KB
 		l2:			256,		// cache L2 in KB
 		l3:			8192,		// cache L3 in KB
-		ram:		12573696	// cache RAM in KB
+		ram:		12573696,	// cache RAM in KB
+		bandwidth:	26843535	// maximum memory bandwidth by milli-second = 25,599.99 MB/s
 	},
-	calibration: {
+	calibration: {			// TYPICAL VALUES
 		s:	1,				// number of switches by ms by core
-		m: 0.3,				// number of migrations by ms by core
+		m:	0.3,			// number of migrations by ms by core
 		ls: 0.01,			// number of success lock acquisition by ms by core
-		lf: 0.003			// number of failure lock acquisition by ms by core
+		lf: 0.003,			// number of failure lock acquisition by ms by core
+		il1:	200000,		// number of L1 cache line invalidations by ms by core
+		il2:	400000		// number of L2 cache line invalidations by ms by core
+	}
+};
+
+var hardSTG = {
+	info: {
+		label:	'Intel i7-860 with 4 GB RAM',
+		cpu: {
+			label:	'Intel® Core™ i7-860',
+			link:	'http://ark.intel.com/products/41316/Intel-Core-i7-860-Processor-8M-Cache-2_80-GHz',
+			model:	'i7-860',
+			type:	'64 bits',
+			cores:	'4 cores / 8 threads',
+			clock:	'2.78 GHz',
+			l1:		'32 KB',
+			l2:		'256 KB',
+			l3:		'8 MB'
+		},
+		ram:	'12 279 MB'
+	},
+	data: {
+		arch:		'x86-64',	// architecture 32 or 64 bits
+		pcores:		4,			// number of physical cores
+		lcores:		8,			// number of logical cores
+		l1caches:	4,			// number of caches L1
+		l2caches:	2,			// number of caches L2
+		l3caches:	1,			// number of caches L3
+		clock:		2.78,		// clock speed in GHz
+		cycles:		2800000,	// max cycles by ms
+		l1:			32,			// cache L1 in KB
+		l2:			256,		// cache L2 in KB
+		l3:			8192,		// cache L3 in KB
+		ram:		4194304,	// cache RAM in KB
+		bandwidth:	22369607	// maximum memory bandwidth in KB by second = 21,333.32 MB/s
+	},
+	calibration: {			// TYPICAL VALUES
+		s:	1,				// number of switches by ms by core
+		m:	0.3,			// number of migrations by ms by core
+		ls: 0.01,			// number of success lock acquisition by ms by core
+		lf: 0.003,			// number of failure lock acquisition by ms by core
+		il1:	200000,		// number of L1 cache line invalidations by ms by core
+		il2:	400000		// number of L2 cache line invalidations by ms by core
 	}
 };
 
@@ -78,7 +122,7 @@ var profileMap = {
 		{ id: 19,	label: 'Word',			desc: 'Microsoft Word sample',		hardware: hardRoman, file: 'word',			pid: 2852,	timeStep: 50, v: 3 },
 		{ id: 20,	label: 'Excel',			desc: 'Microsoft Excel sample',		hardware: hardRoman, file: 'excel',			pid: 5176,	timeStep: 50, v: 3, disabled: true },
 
-		{ id: 21,	label: 'Dining ph. 5',	desc: 'Probliem for 5 philosophers dining',		hardware: hardRoman, file: 'philosophers5',		pid: 12220,	timeStep: 50, v: 4 },
+		{ id: 21,	label: 'Dining ph.  5',	desc: 'Probliem for 5 philosophers dining',		hardware: hardRoman, file: 'philosophers5',		pid: 12220,	timeStep: 50, v: 4 },
 		{ id: 22,	label: 'Dining ph. 45',	desc: 'Probliem for 45 philosophers dining',	hardware: hardRoman, file: 'philosophers45',	pid: 6908,	timeStep: 50, v: 4 },
 
 		{ id: 31,	label: 'P/C 1/1',		desc: '1 producer and 1 consumer',			hardware: hardRoman, file: 'pc1x1',		pid: 67380,	timeStep: 50, v: 4 },
@@ -89,12 +133,23 @@ var profileMap = {
 		{ id: 36,	label: 'P/C 10/100',	desc: '10 producers and 100 consumers',		hardware: hardRoman, file: 'pc10x100',	pid: 82952,	timeStep: 50, v: 4 },
 		{ id: 37,	label: 'P/C 100/1',		desc: '100 producers and 1 consumer',		hardware: hardRoman, file: 'pc100x1',	pid: 84696,	timeStep: 50, v: 4 },
 		{ id: 38,	label: 'P/C 100/10',	desc: '100 producers and 10 consumers',		hardware: hardRoman, file: 'pc100x10',	pid: 90436,	timeStep: 50, v: 4 },
-		{ id: 39,	label: 'P/C 100/100',	desc: '100 producers and 100 consumers',	hardware: hardRoman, file: 'pc100x100',	pid: 93496,	timeStep: 50, v: 4 }
+		{ id: 39,	label: 'P/C 100/100',	desc: '100 producers and 100 consumers',	hardware: hardRoman, file: 'pc100x100',	pid: 93496,	timeStep: 50, v: 4 },
+
+		{ id: 1006,	label: 'Dining ph.  6',	desc: 'Dining philosopher problem for 6 covers',	hardware: hardSTG,	 file: 'philosophers6',		pid: 8864,	timeStep: 50, v: 5, disabled: true },
+		{ id: 1012,	label: 'Dining ph. 12',	desc: 'Dining philosopher problem for 12 covers',	hardware: hardSTG,	 file: 'philosophers12' },
+		{ id: 1045,	label: 'Dining ph. 45″',desc: 'Dining philosopher problem for 45 covers',	hardware: hardSTG,	 file: 'philosophers45bis',	pid: 5456,	timeStep: 50, v: 4, disabled: true },
 	]
 };
 
-// Indexing
-profileMap.all.forEach(function (profile) { profileMap[profile.id] = profile; });
+// Global treatment
+profileMap.all.forEach(function (profile) {
+	// Missing data
+	if (! profile.timeStep) profile.timeStep = 50;
+	if (! profile.v) profile.v = 5;
+	
+	// Indexing
+	profileMap[profile.id] = profile;
+});
 
 
 /************************************************/
@@ -258,6 +313,8 @@ function reloadCache(profile) {
 	var filenameRaw2 = 'data/' + profile.file + '.switches.json';
 	var filenameRaw3 = 'data/' + profile.file + '.dl.json';
 	var filenameRaw4 = 'data/' + profile.file + '.locks.json';
+	var filenameRaw5 = 'data/' + profile.file + '.memory.json';
+	var filenameRaw6 = 'data/' + profile.file + '.coherency.json';
 	var filenameCache = 'data/' + profile.file + '.cache.json';
 
 	// Load raw
@@ -265,10 +322,12 @@ function reloadCache(profile) {
 	var raw2 = JSON.parse(fs.readFileSync(filenameRaw2, 'utf8'));
 	var raw3 = JSON.parse(fs.readFileSync(filenameRaw3, 'utf8'));
 	var raw4 = (profile.v >= 4) ? JSON.parse(fs.readFileSync(filenameRaw4, 'utf8')) : null;
+	var raw5 = (profile.v >= 5) ? JSON.parse(fs.readFileSync(filenameRaw5, 'utf8')) : null;
+	var raw6 = (profile.v >= 5) ? JSON.parse(fs.readFileSync(filenameRaw6, 'utf8')) : null;
 	console.log("[" + profile.id + "] " + profile.file + " raw data loaded");
 
 	// Compute
-	var data = computeData(profile, raw1, raw2, raw3, raw4);
+	var data = computeData(profile, raw1, raw2, raw3, raw4, raw5, raw6);
 	console.log("[" + profile.id + "] " + profile.file + " raw data computed");
 
 	// Save to cache
@@ -281,14 +340,12 @@ function reloadCache(profile) {
 /**
  * Compute data
  */
-function computeData(profile, raw1, raw2, raw3, raw4) {
-
+function computeData(profile, raw1, raw2, raw3, raw4, raw5, raw6) {
 	// Create structure
 	var data = {
 		info: {
 			version:		VERSION,
-			cores:			profile.hardware.data.cores,	// TO REPLACE with lcores
-			threads:		profile.hardware.data.threads,	// TO REPLACE with app's #threads
+			capability:		[!!raw1, !!raw2, !!raw3, !!raw4 && raw4.length > 0, !!raw5, !!raw6],
 			timeStep:		profile.timeStep,
 			timeMin:		0,
 			timeMax:		0,
@@ -306,7 +363,11 @@ function computeData(profile, raw1, raw2, raw3, raw4) {
 			lock_release:	0,
 			lock_wait:		0,
 			lock_hold:		0,
-			threads:		0
+			threads:		0,
+			bandwidth:		0,
+			sysBandwidth:	0,
+			invalid_l1:		0,
+			invalid_l2:		0
 		},
 		frames: {},
 		events: {
@@ -376,9 +437,27 @@ function computeData(profile, raw1, raw2, raw3, raw4) {
 				migrations:		0,	// how many threads migrating
 				lock_success:	0,	// how many threads successing lock acquisition
 				lock_failure:	0,	// how many threads failing lock acquisition
+				
+				bandwidth:		0,	// how many memory bandwidth is used in bytes
+				sysBandwidth:	0,	// how many memory bandwidth is used by the system in bytes
+				
+				invalid_l1:		0,	// how many L1 invalidations (cache coherency misses)
+				invalid_l2:		0,	// how many L2 invalidations (cache coherency misses)
 			}
 		}
 	}
+
+	/**
+	 *
+	 *	Profile treatment
+	 *
+	 */
+	// Missing data
+	if (! profile.pid) {
+		profile.pid = raw4[0].pid;
+		console.log('0> add pid', profile.pid);
+	}
+	
 
 	/**
 	 *
@@ -386,7 +465,6 @@ function computeData(profile, raw1, raw2, raw3, raw4) {
 	 *		states
 	 *
 	 */
-
 	// Analyse element by element and group them by time
 	var statThreads = {};
 	raw1.forEach(function(element) {
@@ -490,7 +568,7 @@ function computeData(profile, raw1, raw2, raw3, raw4) {
 	 *
 	 */
 	// Sequential sequences
-	var coreLength = profile.hardware.data.threads;
+	var coreLength = profile.hardware.data.lcores;
 	var coreActivity = [];
 	var isActuallyRunning;
 	for (var cid = 0; cid < coreLength; cid++) coreActivity[cid] = true;
@@ -654,7 +732,6 @@ function computeData(profile, raw1, raw2, raw3, raw4) {
 			data.frames[timeID].runcores += q_previousRunningCoreByMs * (timeID + timeStep - Math.max(timeID, q_previousEventTime));
 			data.frames[timeID].parallel += (q_previousRunningCoreS >= PARALLEL_THRESHOLD) ? (timeID + timeStep - Math.max(timeID, q_previousEventTime)) : 0;
 		}
-		console.log(timeID, data.frames[timeID].parallel, 100 * data.frames[timeID].runcores / 8);
 		
 		// Sequence post-treatment
 		data.stats.parallel += data.frames[timeID].parallel;
@@ -669,8 +746,8 @@ function computeData(profile, raw1, raw2, raw3, raw4) {
 	 *
 	 */
 	// Var
-	var property;
-	var steps = +raw3.info.duration / timeStep;
+//	var property;
+//	var steps = +raw3.info.duration / timeStep;
 
 	// Init stats
 	data.locality.stats = {
@@ -765,7 +842,7 @@ function computeData(profile, raw1, raw2, raw3, raw4) {
 			data.events.threads[element.tid].ls.push(timeEvent);
 
 			// Save when lock is holding
-			if (hold_map[element.value] != null && hold_map[element.value] != element.dtime) console.log("incoherent: lock already holded", element.value, hold_map[element.value], element.dtime);
+			if (hold_map[element.value] != null && hold_map[element.value] != element.dtime) console.log("4> incoherent: lock already holded", element.value, hold_map[element.value], element.dtime);
 			hold_map[element.value] = element.dtime;
 
 			// Save lock life
@@ -782,7 +859,7 @@ function computeData(profile, raw1, raw2, raw3, raw4) {
 
 			// Save the failure duration
 			if (duration > 0) {
-				if (wait_map[element.tid] == null || ! wait_map.hasOwnProperty(element.tid)) console.log('incoherent: duration positive but no starting time', duration, wait_map[element.tid]);
+				if (wait_map[element.tid] == null || ! wait_map.hasOwnProperty(element.tid)) console.log('4> incoherent: duration positive but no starting time', duration, wait_map[element.tid]);
 
 				// Check event list existance
 				if (! data.periods.threads.hasOwnProperty(element.tid))
@@ -830,7 +907,7 @@ function computeData(profile, raw1, raw2, raw3, raw4) {
 			data.events.threads[element.tid].lf.push(timeEvent);
 
 			// Save when a thread fail
-			if (wait_map[element.tid] != null && wait_map[element.tid] != element.dtime) console.log("incoherent: thread already waiting", wait_map[element.tid], element.dtime);
+			if (wait_map[element.tid] != null && wait_map[element.tid] != element.dtime) console.log("4> incoherent: thread already waiting", wait_map[element.tid], element.dtime);
 			wait_map[element.tid] = element.dtime;
 
 			// Save lock life
@@ -882,6 +959,91 @@ function computeData(profile, raw1, raw2, raw3, raw4) {
 
 	/**
 	 *
+	 *	RAW 5:
+	 *		memory bandwidth
+	 *
+	 */
+	var systemBandwidth = [];
+	if (raw5 != null) {
+		// Treat all elements
+		raw5.forEach(function(element) {
+			// Compute time ID
+			timeEvent = Math.round(element.dtime / 10000);
+			
+			// Append memory bandwidth
+			if (element.cid % 2 == 0 && element.type == 'drambw') {
+
+				// Check time frame existance
+				checkFrame(timeEvent);
+				
+				// Append memory bandwidth
+				data.stats.bandwidth += element.value | 0;
+				data.frames[timeEvent].bandwidth += element.value | 0;
+				data.frames[timeEvent].c[element.cid / 2].bandwidth = element.value;
+			}
+			
+			// Save system + app memory bandwidth
+			else if (element.type == 'MC_read' || element.type == 'MC_write') {
+				console.log('5> info', element.type, timeEvent);
+				systemBandwidth[timeEvent] = (systemBandwidth[timeEvent] | 0) + (element.value | 0);
+			}
+		});
+		
+		// Compute system events
+		var diff;
+		systemBandwidth.forEach(function(value, t) {
+			// Check time frame existance
+			checkFrame(t);
+			
+			// Compute value
+			diff = value - data.frames[t].bandwidth;
+			console.log('5> info', t, 'total', value, 'app', data.frames[t].bandwidth, 'diff', diff);
+			if (diff < 0) console.log('5> negative bandwidth', t, 'total', value, 'app', data.frames[t].bandwidth);
+			diff = Math.max(diff, 0);
+			
+			// Append system memory bandwidth
+			data.frames[t].sysBandwidth = diff;
+			data.stats.sysBandwidth += diff;
+		})
+	}
+
+
+	/**
+	 *
+	 *	RAW 6:
+	 *		cache coherency misses
+	 *
+	 */
+	var coreCount = profile.hardware.data.lcores;
+	var lxID, pxID, value, cxID;
+	if (raw6 != null) raw6.forEach(function(element) {
+		if (element.pid == profile.pid) {
+			// Compute time ID
+			timeEvent = Math.round(element.dtime / 10000);
+
+			// Check time frame existance
+			checkFrame(timeEvent);
+			
+			// Compute id
+			lxID = element.type[1];
+			pxID = 'invalid_l' + lxID;
+			cxID = Math.floor(element.cid / (coreCount / profile.hardware.data['l' + lxID + 'caches']));
+			value = element.value | 0;
+			
+			// Append Lx invalidation (cache coherency misses)
+			// Sum values by threads
+			data.stats[pxID] += value;
+			data.frames[timeEvent][pxID] += value;
+			
+			// Append Lx invalidation (cache coherency misses)
+			// Sum values by threads for cache ID
+			data.frames[timeEvent].c[cxID][pxID] = (data.frames[timeEvent].c[cxID][pxID] | 0) + value;
+		}
+	});
+	
+
+	/**
+	 *
 	 *	Post treatment
 	 *
 	 */
@@ -918,12 +1080,11 @@ function exportInfo(output, profile) {
 
 	// Infos
 	output.info = {
-		cores:			data.info.cores,	// TO REPLACE with lcores
-		threads:		data.info.threads,	// TO REPLACE with app's #threads
-		timeMin:		data.info.timeMin,
-		timeMax:		data.info.timeMax,
-		timeStep:		data.info.timeStep,
-		duration:		data.info.duration
+		capability:	data.info.capability,
+		timeMin:	data.info.timeMin,
+		timeMax:	data.info.timeMax,
+		timeStep:	data.info.timeStep,
+		duration:	data.info.duration
 	};
 }
 

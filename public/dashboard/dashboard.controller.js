@@ -17,7 +17,7 @@ app.controller('DashboardController', ['$scope', '$rootScope', '$window', '$stat
 	// References
 	var ids = $stateParams.ids.split('-')
 		.map(function(value) { return +value; })
-		.filter(function(value) { return value === parseInt(value, 10) && value > 0 && value < 99; })
+		.filter(function(value) { return value === parseInt(value, 10) && value > 0 && value < 9999; })
 		.slice(0, 2);
 	
 	// Global binds
@@ -188,6 +188,7 @@ app.controller('DashboardController', ['$scope', '$rootScope', '$window', '$stat
 	};
 	*/
 	
+	
 	/************************************************/
 	/* Graphical - Help selection					*/
 	/************************************************/
@@ -219,6 +220,16 @@ app.controller('DashboardController', ['$scope', '$rootScope', '$window', '$stat
 	}
 	
 	
+	/************************************************/
+	/* Functions - Capabilities						*/
+	/************************************************/
+	/**
+	 * Capability - strip
+	 */
+	$scope.isStripCapable = function() {
+		return $scope.selectedProfiles[this.pindex].data.dash.info.capability[this.strip.facet.capability];
+	//	return strip.facet.capability;
+	}
 
 	/************************************************/
 	/* Functions - Handle data						*/
@@ -242,12 +253,12 @@ app.controller('DashboardController', ['$scope', '$rootScope', '$window', '$stat
 	$scope.selectProfile = function(profile) {
 		// Download data for graphs
 		if (profile.data.hasOwnProperty('dash')) {
-			$scope._selectProfile_withData(profile);
+			_selectProfile_withData(profile);
 		} else {
-			$scope.downloadData(profile);
+			downloadData(profile);
 		}
 	};
-	$scope._selectProfile_withData = function(profile) {
+	function _selectProfile_withData(profile) {
 		// add to selection
 		$scope.selectedProfiles.push(profile);
 		
@@ -322,7 +333,7 @@ app.controller('DashboardController', ['$scope', '$rootScope', '$window', '$stat
 	/**
 	 * Load
 	 */
-	$scope.downloadData = function(profile) {
+	function downloadData(profile) {
 		waitingProfiles.push(profile);
 		$scope.howWaiting++;
 
@@ -331,7 +342,7 @@ app.controller('DashboardController', ['$scope', '$rootScope', '$window', '$stat
 
 			$scope.brushing.timeMax = Math.max($scope.brushing.timeMax, data.info.duration);
 
-			$scope._selectProfile_withData(profile);
+			_selectProfile_withData(profile);
 
 			waitingProfiles.splice(waitingProfiles.indexOf(profile), 1);
 			$scope.howWaiting--;

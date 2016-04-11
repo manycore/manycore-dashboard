@@ -7,13 +7,14 @@ var fs = require('fs');
 /************************************************/
 /* Constants									*/
 /************************************************/
-var VERSION = 80;
+var VERSION = 84;
 var PARALLEL_THRESHOLD = 2;
 
 /************************************************/
 /* Variables - hardwares						*/
 /************************************************/
 var hardRoman = {
+	folder: 'Roman',
 	info: {
 		label:	'Intel i7-950 with 12 GB RAM',
 		cpu: {
@@ -55,6 +56,7 @@ var hardRoman = {
 };
 
 var hardSTG = {
+	folder: 'STG',
 	info: {
 		label:	'Intel i7-860 with 4 GB RAM',
 		cpu: {
@@ -135,16 +137,29 @@ var profileMap = {
 		{ id: 38,	label: 'P/C 100/10',	desc: '100 producers and 10 consumers',		hardware: hardRoman, file: 'pc100x10',	pid: 90436,	timeStep: 50, v: 4 },
 		{ id: 39,	label: 'P/C 100/100',	desc: '100 producers and 100 consumers',	hardware: hardRoman, file: 'pc100x100',	pid: 93496,	timeStep: 50, v: 4 },
 
-		{ id: 1006,	label: 'Dining ph.  6',	desc: 'Dining philosopher problem for 6 covers',	hardware: hardSTG,	 file: 'philosophers6',		pid: 8864,	timeStep: 50, v: 5, disabled: true },
-		{ id: 1012,	label: 'Dining ph. 12',	desc: 'Dining philosopher problem for 12 covers',	hardware: hardSTG,	 file: 'philosophers12' },
-		{ id: 1045,	label: 'Dining ph. 45″',desc: 'Dining philosopher problem for 45 covers',	hardware: hardSTG,	 file: 'philosophers45bis',	pid: 5456,	timeStep: 50, v: 4, disabled: true },
+//		{ id: 101,	label: 'Matmul IJK',	desc: 'Matrix multiplication IJK in parallel', 	hardware: hardSTG, file: 'matmul-p-ijk', disabled: true },
+//		{ id: 102,	label: 'Matmul IKJ',	desc: 'Matrix multiplication IKJ in parallel', 	hardware: hardSTG, file: 'matmul-p-ikj', disabled: true },
+//		{ id: 103,	label: 'Matmul JIK',	desc: 'Matrix multiplication JIK in parallel', 	hardware: hardSTG, file: 'matmul-p-jik', disabled: true },
+//		{ id: 104,	label: 'Matmul JKI',	desc: 'Matrix multiplication JKI in parallel', 	hardware: hardSTG, file: 'matmul-p-jki', disabled: true },
+		{ id: 105,	label: 'Matmul KIJ',	desc: 'Matrix multiplication KIJ in parallel', 	hardware: hardSTG, file: 'matmul-p-kij', disabled: true },
+//		{ id: 106,	label: 'Matmul KJI',	desc: 'Matrix multiplication KJI in parallel', 	hardware: hardSTG, file: 'matmul-p-kji', disabled: true },
+//		{ id: 107,	label: 'Matmul IJK',	desc: 'Matrix multiplication IJK sequentially', 	hardware: hardSTG, file: 'matmul-s-ijk', disabled: true },
+//		{ id: 108,	label: 'Matmul IKJ',	desc: 'Matrix multiplication IKJ sequentially', 	hardware: hardSTG, file: 'matmul-s-ikj', disabled: true },
+//		{ id: 109,	label: 'Matmul JIK',	desc: 'Matrix multiplication JIK sequentially', 	hardware: hardSTG, file: 'matmul-s-jik', disabled: true },
+//		{ id: 110,	label: 'Matmul JKI',	desc: 'Matrix multiplication JKI sequentially', 	hardware: hardSTG, file: 'matmul-s-jki', disabled: true },
+//		{ id: 111,	label: 'Matmul KIJ',	desc: 'Matrix multiplication KIJ sequentially', 	hardware: hardSTG, file: 'matmul-s-kij', disabled: true },
+//		{ id: 112,	label: 'Matmul KJI',	desc: 'Matrix multiplication KJI sequentially', 	hardware: hardSTG, file: 'matmul-s-kji', disabled: true },
+		
+		{ id: 1006,	label: 'Dining ph.  6',	desc: 'Dining philosopher problem for 6 covers',	hardware: hardSTG,	 file: 'philosophers006', timeStep: 50, disabled: true },
+		{ id: 1012,	label: 'Dining ph. 12',	desc: 'Dining philosopher problem for 12 covers',	hardware: hardSTG,	 file: 'philosophers012', timeStep: 50 },
+		{ id: 1045,	label: 'Dining ph. 45',	desc: 'Dining philosopher problem for 45 covers',	hardware: hardSTG,	 file: 'philosophers045', timeStep: 50, v: 4, disabled: true },
 	]
 };
 
 // Global treatment
 profileMap.all.forEach(function (profile) {
 	// Missing data
-	if (! profile.timeStep) profile.timeStep = 50;
+	if (! profile.timeStep) profile.timeStep = 25;
 	if (! profile.v) profile.v = 5;
 	
 	// Indexing
@@ -258,7 +273,7 @@ function getVersion(profile) {
 
 	try {
 		// Get version
-		v = JSON.parse(fs.readFileSync('data/' + profile.file + '.cache.json', 'utf8')).info.version;
+		v = JSON.parse(fs.readFileSync('data/' + profile.hardware.folder + '.' + profile.file + '.cache.json', 'utf8')).info.version;
 
 	} catch (e) { }
 
@@ -276,7 +291,7 @@ function loadData(profile, notCreateCache) {
 	}
 
 	// Vars
-	var filenameCache = 'data/' + profile.file + '.cache.json';
+	var filenameCache = 'data/' + profile.hardware.folder + '.' + profile.file + '.cache.json';
 
 	// Load data from cache
 	try {
@@ -309,13 +324,13 @@ function loadData(profile, notCreateCache) {
  */
 function reloadCache(profile) {
 	// Vars
-	var filenameRaw1 = 'data/' + profile.file + '.states.json';
-	var filenameRaw2 = 'data/' + profile.file + '.switches.json';
-	var filenameRaw3 = 'data/' + profile.file + '.dl.json';
-	var filenameRaw4 = 'data/' + profile.file + '.locks.json';
-	var filenameRaw5 = 'data/' + profile.file + '.memory.json';
-	var filenameRaw6 = 'data/' + profile.file + '.coherency.json';
-	var filenameCache = 'data/' + profile.file + '.cache.json';
+	var filenameRaw1 = 'data/' + profile.hardware.folder + '/' + profile.file + '.states.json';
+	var filenameRaw2 = 'data/' + profile.hardware.folder + '/' + profile.file + '.switches.json';
+	var filenameRaw3 = 'data/' + profile.hardware.folder + '/' + profile.file + '.dl.json';
+	var filenameRaw4 = 'data/' + profile.hardware.folder + '/' + profile.file + '.locks.json';
+	var filenameRaw5 = 'data/' + profile.hardware.folder + '/' + profile.file + '.memory.json';
+	var filenameRaw6 = 'data/' + profile.hardware.folder + '/' + profile.file + '.coherency.json';
+	var filenameCache = 'data/' + profile.hardware.folder + '.' + profile.file + '.cache.json';
 
 	// Load raw
 	var raw1 = JSON.parse(fs.readFileSync(filenameRaw1, 'utf8'));
@@ -366,8 +381,10 @@ function computeData(profile, raw1, raw2, raw3, raw4, raw5, raw6) {
 			threads:		0,
 			bandwidth:		0,
 			sysBandwidth:	0,
-			invalid_l1:		0,
-			invalid_l2:		0
+			l1_miss:		0,
+			l1_invalid:		0,
+			l2_miss:		0,
+			l2_invalid:		0
 		},
 		frames: {},
 		events: {
@@ -441,8 +458,10 @@ function computeData(profile, raw1, raw2, raw3, raw4, raw5, raw6) {
 				bandwidth:		0,	// how many memory bandwidth is used in bytes
 				sysBandwidth:	0,	// how many memory bandwidth is used by the system in bytes
 				
-				invalid_l1:		0,	// how many L1 invalidations (cache coherency misses)
-				invalid_l2:		0,	// how many L2 invalidations (cache coherency misses)
+				l1_miss:		0,	// how many L1 miss
+				l1_invalid:		0,	// how many L1 invalidations (cache coherency misses)
+				l2_miss:		0,	// how many L2 miss
+				l2_invalid:		0,	// how many L2 invalidations (cache coherency misses)
 			}
 		}
 	}
@@ -454,7 +473,11 @@ function computeData(profile, raw1, raw2, raw3, raw4, raw5, raw6) {
 	 */
 	// Missing data
 	if (! profile.pid) {
-		profile.pid = raw4[0].pid;
+		var i = raw1.length;
+		while (i-- && ! profile.pid) {
+			console.log('0> search pid', i, ! profile.pid);
+			if (raw1[i].program == 'Matmul') profile.pid = raw1[i].pid;
+		}
 		console.log('0> add pid', profile.pid);
 	}
 	
@@ -984,7 +1007,6 @@ function computeData(profile, raw1, raw2, raw3, raw4, raw5, raw6) {
 			
 			// Save system + app memory bandwidth
 			else if (element.type == 'MC_read' || element.type == 'MC_write') {
-				console.log('5> info', element.type, timeEvent);
 				systemBandwidth[timeEvent] = (systemBandwidth[timeEvent] | 0) + (element.value | 0);
 			}
 		});
@@ -997,8 +1019,7 @@ function computeData(profile, raw1, raw2, raw3, raw4, raw5, raw6) {
 			
 			// Compute value
 			diff = value - data.frames[t].bandwidth;
-			console.log('5> info', t, 'total', value, 'app', data.frames[t].bandwidth, 'diff', diff);
-			if (diff < 0) console.log('5> negative bandwidth', t, 'total', value, 'app', data.frames[t].bandwidth);
+			if (diff < 0) console.error('5> ERROR negative bandwidth', t, 'total', value, 'app', data.frames[t].bandwidth);
 			diff = Math.max(diff, 0);
 			
 			// Append system memory bandwidth
@@ -1026,19 +1047,46 @@ function computeData(profile, raw1, raw2, raw3, raw4, raw5, raw6) {
 			
 			// Compute id
 			lxID = element.type[1];
-			pxID = 'invalid_l' + lxID;
 			cxID = Math.floor(element.cid / (coreCount / profile.hardware.data['l' + lxID + 'caches']));
 			value = element.value | 0;
 			
-			// Append Lx invalidation (cache coherency misses)
+			// Compute property
+			if (element.type == 'l1Invalidations' || element.type == 'l2Invalidations') {
+				pxID = 'l' + lxID + '_invalid';
+			} else if (element.type == 'l1miss' || element.type == 'l2miss') {
+				pxID = 'l' + lxID + '_miss';
+			}
+			
+			// Append Lx invalidation (cache coherency misses) or miss
 			// Sum values by threads
-			data.stats[pxID] += value;
 			data.frames[timeEvent][pxID] += value;
 			
-			// Append Lx invalidation (cache coherency misses)
+			// Append Lx invalidation (cache coherency misses) or miss
 			// Sum values by threads for cache ID
 			data.frames[timeEvent].c[cxID][pxID] = (data.frames[timeEvent].c[cxID][pxID] | 0) + value;
 		}
+	});
+	if (raw6 != null) Object.keys(data.frames).forEach(function(timeEvent) {
+		if (timeEvent >= 0 && data.frames[timeEvent].c['0'].l1_invalid) {
+			// Truncate values
+			data.frames[timeEvent].l1_invalid = Math.min(data.frames[timeEvent].l1_invalid, data.frames[timeEvent].l1_miss);
+			data.frames[timeEvent].l2_invalid = Math.min(data.frames[timeEvent].l2_invalid, data.frames[timeEvent].l2_miss);
+			
+			// Truncate values by cache ID
+			for (var cxID = 0; cxID < profile.hardware.data.l1caches; cxID++) {
+				data.frames[timeEvent].c[cxID].l1_invalid = Math.min(data.frames[timeEvent].c[cxID].l1_invalid, data.frames[timeEvent].c[cxID].l1_miss);
+			}
+			for (var cxID = 0; cxID < profile.hardware.data.l2caches; cxID++) {
+				data.frames[timeEvent].c[cxID].l2_invalid = Math.min(data.frames[timeEvent].c[cxID].l2_invalid, data.frames[timeEvent].c[cxID].l2_miss);
+			}
+			
+			// Append (truncated) stats
+			data.stats.l1_invalid += data.frames[timeEvent].l1_invalid;
+			data.stats.l2_invalid += data.frames[timeEvent].l2_invalid;
+			data.stats.l1_miss += data.frames[timeEvent].l1_miss;
+			data.stats.l2_miss += data.frames[timeEvent].l2_miss;
+		}
+		
 	});
 	
 

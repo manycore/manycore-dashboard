@@ -61,7 +61,7 @@
 					<i class="fa fa-info fa-stack-1x fa-inverse"></i>
 				</span>
 				<h2>What's next?</h2>
-				<p><i class="fa fa-arrow-right text-info"></i> Check all indicators and gauges for overflow or lack</p>
+				<p><i class="fa fa-arrow-right text-info"></i> Check all indicators and gauges. <span class="text-warning">Larger shapes may indicate problems.</span></p>
 				<p><i class="fa fa-arrow-right text-info"></i> Choose a category to drill-down through the problem</p>
 				<p><i class="fa fa-graduation-cap text-info"></i> For experts: <a ui-sref='raw({ids: encodeSelectedProfile()})'>check the raw data</a></p>
 			</div>
@@ -132,7 +132,7 @@
 		</section>
 		
 		<!-- Sequence -->
-		<section class="sequence">
+		<section class="sequence" uib-tooltip-template="'template_tooltip_duration.html'">
 			<chart-sequence class="widget-graph"></chart-sequence>
 		</section>
 	</div>
@@ -153,10 +153,22 @@
             <span ng-if="isStripCapable()" class="strip-gauge" style="color: {{::strip.facet.colours.n}}">{{selectedProfiles[pindex].data.dash.gauges[strip.facet.attr].l}}</span>
 			<chart-strip ng-if="isStripCapable()" class="widget-graph" uib-tooltip-template="'template_tooltip_strip.html'"></chart-strip>
 			<div class="no-strip" ng-if="! isStripCapable()" style="color: {{::strip.facet.colours.n}}">
-				Missing data for {{::strip.title}}
+				&lt;no data for {{::strip.title}}&gt;
 			</div>
 		</section>
 	</div></div>
+</script>
+
+<!-- Tooltip - Timeline -->
+<script type="text/ng-template" id="template_tooltip_duration.html">
+	<div class="block-icon">
+		<span class="fa-stack text-info">
+			<i class="fa fa-circle fa-stack-2x"></i>
+			<i class="fa fa-hourglass-end fa-stack-1x fa-inverse"></i>
+		</span>
+	</div>
+	<h4>Duration</h4>
+	<p>This application ran for {{iProfile().data.dash.info.duration}} ms</p>
 </script>
 
 <!-- Tooltip - Category -->

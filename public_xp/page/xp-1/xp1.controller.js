@@ -74,9 +74,8 @@ xpapp.controller('XP1Controller',
 		// Tabs
 		$scope.tabIndex = 0;
 		$scope.tabs = [
-			{ l: 'the experimentation',		t: 'Experiment about parallel performance' },
-			{ l: 'our approach',			t: 'Explanations for our approach' },
-			{ l: 'our tool',				t: 'Explanations for our tool' },
+			{ t: 'Visualising performance problems' },
+			{ t: 'How the tool works' }
 		];
 	};
 	
@@ -114,10 +113,12 @@ xpapp.controller('XP1Controller',
 		// Tabs
 		$scope.tabIndex = 0;
 		$scope.tabs = [
-			{ isTool: false,	l: 'information',	t: 'Example' },
-			{ isTool: true,							path: $sce.trustAsResourceUrl('/#/xp/nofeedback-nonavbar-nounselect-noselect/dashboard/252') },
-			{ isTool: true,		l: 'explaination',	path: $sce.trustAsResourceUrl('/#/xp/nofeedback-nonavbar-nounselect-noselect/detail/dl/252') },
-			{ isTool: false,						t: 'Before starting the experimentation' },
+			{ isTool: false,	t: 'Example' },
+			{ isTool: true,		path: $sce.trustAsResourceUrl('/#/xp/nofeedback-nonavbar-nounselect-noselect/dashboard/250-252') },
+			{ isTool: true,		path: $sce.trustAsResourceUrl('/#/xp/nofeedback-nonavbar-nounselect-noselect/detail/dl/250-252') },
 		];
+
+		// UI data
+		$scope.issues = taxonomy.all.issues;
 	};
 }]);

@@ -19,9 +19,10 @@ xpapp.controller('PageController', ['$scope', '$rootScope', '$uibModal', functio
 	/************************************************/
 	$scope.allRequiredFileds = function() {
 		var canContinue = true;
-		$rootScope.step.required.forEach(function(field) {
-			canContinue = canContinue && !! $scope.form[field];
-		});
+		if ($rootScope.step.required)
+			$rootScope.step.required.forEach(function(field) {
+				canContinue = canContinue && !! $scope.form[field];
+			});
 		return canContinue; 
 	}
 	
@@ -32,6 +33,9 @@ xpapp.controller('PageController', ['$scope', '$rootScope', '$uibModal', functio
 		if ($scope.tabIndex == $scope.tabs.length - 1) {
 			$rootScope.actionNext();
 		} else {
+			if ($rootScope.step.mousetrack && document.getElementsByTagName('iframe')[0]) {
+				$rootScope.step.currentMouseTrack = document.getElementsByTagName('iframe')[0].contentWindow.xp;
+			}
 			$scope.tabIndex++;
 		}
 	}

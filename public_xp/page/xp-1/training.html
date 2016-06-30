@@ -1,0 +1,61 @@
+<!-- Training: texts -->
+<section ng-if="! tabs[tabIndex].isTool" class="modal-content">
+	<div class="modal-header">
+		<h1 class="modal-title" ng-bind="tabs[tabIndex].t"></h1>
+	</div>
+	
+	<!-- Informations -->
+	<div ng-if="tabIndex == 0" class="modal-body">
+		<p>
+			In this section, you can practice using the tool with an example. In this
+			example, we present data from two versions of a program carrying out matrix
+			multiplication. One of them performs much better than the other. Please look at
+			each of the drill-down screens of the tool in order to diagnose the most likely
+			source of the problem.
+		</p>
+	</div>
+
+	<!-- End -->
+	<div ng-if="tabIndex == 3" class="modal-body">
+		<p>
+			Todo Training.5.1
+		</p><p>
+			Todo Training.5.2
+		</p>
+	</div>
+	
+	<div class="modal-footer">
+		<button ng-if="couldPreviousTab()" type="button" class="btn btn-link" type="button" ng-click="actionPreviousTab()"><i class="fa fa-hand-o-left" style="padding-right: 8px;"></i>Previous ({{tabs[tabIndex - 1].l}})</button>
+		<button type="button" class="btn btn-primary" type="button" ng-click="actionNextTab()">Next<i class="fa fa-hand-o-right" style="padding-left: 8px;"></i></button>
+	</div>
+</section>
+
+<!-- Training: tools -->
+<div ng-if="tabs[tabIndex].isTool" class="task">
+	<div class="container-fluid">
+		<div class="row">
+			<div ng-if="tabIndex == 1" class="col-sm-10">
+				<p>
+					in the example you just saw, the problem was poor data locality, 
+					and specifically poor cache locality. Feel free to look back at the data if you 
+					had difficulty recognizing this problem
+				</p>
+			</div>
+			<div ng-if="tabIndex == 2" class="col-sm-10">
+				<p>
+					Todo Training.3.1 Details
+				</p><p>
+					Todo Training.3.2
+				</p>
+			</div>
+
+			<div class="col-sm-2">
+				<div class="btn-group-vertical" style="width: 100%">
+					<button type="button" class="btn btn-link" type="button" ng-click="actionPreviousTab()"><i class="fa fa-hand-o-left" style="padding-right: 8px;"></i>Previous</button>
+					<button type="button" class="btn btn-primary" type="button" ng-click="actionNextTab()">Next<i class="fa fa-hand-o-right" style="padding-left: 8px;"></i></button>
+				</div>
+			</div>
+		</div>
+	</div>
+	<iframe frameborder="0" ng-src="{{tabs[tabIndex].path}}" />
+</div>

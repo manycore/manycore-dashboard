@@ -1,4 +1,4 @@
-var xpapp = angular.module('manycoreXP', ['ngSanitize', 'ui.router', 'ui.bootstrap']); // , 'gist', 'mcq', 'ngAnimate'
+var xpapp = angular.module('manycoreXP', ['ngSanitize', 'ui.router', 'ui.bootstrap', 'ui.select']); // , 'gist', 'mcq', 'ngAnimate'
 
 /************************************************/
 /* UI States									*/
@@ -13,6 +13,7 @@ xpapp.config(['$stateProvider', '$urlRouterProvider', '$controllerProvider', fun
 		.state('thankyou', {	url:'/thankyou',										templateUrl: 'page/common/thankyou.html'})
 		.state('cancelled', {	url:'/cancelled',										templateUrl: 'page/common/cancelled.html'})
 		.state('tool', {		url:'/tool',		controller: 'ToolController',		templateUrl: 'page/common/tool.html'})
+		.state('task', {		url:'/task/{id:[0-9]{1,2}}',	controller: 'TaskController',		templateUrl: 'page/common/task.html'})
 		.state('page', {		url:'/page/{xp}/{step}',
 			controllerProvider: function($stateParams) {
 				var controllerName = 'XP' + $stateParams.xp + 'Controller';
@@ -34,9 +35,6 @@ xpapp.config(['$stateProvider', '$urlRouterProvider', '$controllerProvider', fun
 	
 	// Default path
 	$urlRouterProvider.otherwise('error');
-	
-	// TO DELETE
-	$urlRouterProvider.otherwise('/xp/1');
 }]);
 
 
@@ -192,7 +190,7 @@ xpapp.run(['$rootScope', '$state', '$http', 'threads', function($rootScope, $sta
 		// Collect data
 		if (currentStep) {
 			if (! currentStep.hasOwnProperty('editable')) currentStep.editable = true;
-			var frameXP = (currentStep.mousetrack) ? document.getElementById("toolFrame").contentWindow.xp : null;
+			var frameXP = (currentStep.mousetrack && document.getElementsByTagName('iframe')[0]) ? document.getElementsByTagName('iframe')[0].contentWindow.xp : currentStep.currentMouseTrack;
 			$rootScope.actionWrite({
 				type:		'page',
 				user_group:	$rootScope.xp.group,
@@ -204,7 +202,9 @@ xpapp.run(['$rootScope', '$state', '$http', 'threads', function($rootScope, $sta
 		// Go to next page
 		$rootScope.step = nextStep;
 		$rootScope.xp.step = nextStep.id;
-		if (nextStep.state)
+		if (nextStep.taskID)
+			$state.go('task', {id: nextStep.taskID});
+		else if (nextStep.state)
 			$state.go(nextStep.state);
 		else
 			$state.go('page', {xp: $rootScope.thread.id, step: nextStep.pageID});
@@ -253,3 +253,36 @@ xpapp.run(['$rootScope', '$state', '$http', 'threads', function($rootScope, $sta
 /************************************************/
 /* Directives									*/
 /************************************************/
+xpapp.directive('iframeAutoResize', ['$window', function($window) {
+	return {
+		restrict: 'A',
+		link: function(scope, element, attrs) {
+			function resizeIFrame() {
+				console.log('resize window');
+				element.css('min-height', Math.round(document.documentElement.clientHeight - element[0].getBoundingClientRect().top - 3) + 'px');
+			}
+
+			// Bind window resize
+			angular.element($window).bind('resize', resizeIFrame);
+
+			// Init resize
+			resizeIFrame();
+
+			/*
+			Math.round(document.documentElement.clientHeight - element[0].getBoundingClientRect())
+			console.log('height', element[0].getBoundingClientRect(), );
+			element.on('load', function(event) {
+				console.log('on');
+				console.log('contentWindow', element[0].contentWindow);
+				console.log('height', element[0].getBoundingClientRect().top, document.documentElement.clientHeight);
+			
+				element.css('min-height', element[0].contentWindow.document.body.scrollHeight + 'px');
+
+				angular.element(element[0].contentWindow).bind('resize', function() {
+					console.log('bind', arguments);
+				});
+			});
+			*/
+		}
+	}
+}]);

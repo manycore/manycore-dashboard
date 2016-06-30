@@ -7,7 +7,7 @@ var fs = require('fs');
 /************************************************/
 /* Constants									*/
 /************************************************/
-var VERSION = 84;
+var VERSION = 87;
 var PARALLEL_THRESHOLD = 2;
 
 /************************************************/
@@ -97,6 +97,9 @@ var hardSTG = {
 	}
 };
 
+var hardXP = JSON.parse(JSON.stringify(hardSTG));
+hardXP.folder = 'XP';
+
 
 /************************************************/
 /* Variables - profiles							*/
@@ -141,7 +144,7 @@ var profileMap = {
 //		{ id: 102,	label: 'Matmul IKJ',	desc: 'Matrix multiplication IKJ in parallel', 	hardware: hardSTG, file: 'matmul-p-ikj', disabled: true },
 //		{ id: 103,	label: 'Matmul JIK',	desc: 'Matrix multiplication JIK in parallel', 	hardware: hardSTG, file: 'matmul-p-jik', disabled: true },
 //		{ id: 104,	label: 'Matmul JKI',	desc: 'Matrix multiplication JKI in parallel', 	hardware: hardSTG, file: 'matmul-p-jki', disabled: true },
-		{ id: 105,	label: 'Matmul KIJ',	desc: 'Matrix multiplication KIJ in parallel', 	hardware: hardSTG, file: 'matmul-p-kij', disabled: true },
+		{ id: 105,	label: 'Matmul KIJ',	desc: 'Matrix multiplication KIJ in parallel', 	hardware: hardSTG, file: 'matmul-p-kij', disabled: true,	timeStep: 25 },
 //		{ id: 106,	label: 'Matmul KJI',	desc: 'Matrix multiplication KJI in parallel', 	hardware: hardSTG, file: 'matmul-p-kji', disabled: true },
 //		{ id: 107,	label: 'Matmul IJK',	desc: 'Matrix multiplication IJK sequentially', 	hardware: hardSTG, file: 'matmul-s-ijk', disabled: true },
 //		{ id: 108,	label: 'Matmul IKJ',	desc: 'Matrix multiplication IKJ sequentially', 	hardware: hardSTG, file: 'matmul-s-ikj', disabled: true },
@@ -150,6 +153,31 @@ var profileMap = {
 //		{ id: 111,	label: 'Matmul KIJ',	desc: 'Matrix multiplication KIJ sequentially', 	hardware: hardSTG, file: 'matmul-s-kij', disabled: true },
 //		{ id: 112,	label: 'Matmul KJI',	desc: 'Matrix multiplication KJI sequentially', 	hardware: hardSTG, file: 'matmul-s-kji', disabled: true },
 		
+		{ id: 211,	label: 'Program B',	desc: 'Highlighting a performance problem',	hardware: hardXP, file: 'program-11' },
+		{ id: 212,	label: 'Program B',	desc: 'Highlighting a performance problem',	hardware: hardXP, file: 'program-12' },
+		{ id: 220,	label: 'Program A',	desc: 'Highlighting a performance problem',	hardware: hardXP, file: 'program-20' },
+		{ id: 221,	label: 'Program B',	desc: 'Highlighting a performance problem',	hardware: hardXP, file: 'program-21' },
+		{ id: 222,	label: 'Program B',	desc: 'Highlighting a performance problem',	hardware: hardXP, file: 'program-22' },
+		{ id: 231,	label: 'Program B',	desc: 'Highlighting a performance problem',	hardware: hardXP, file: 'program-31' },
+		{ id: 233,	label: 'Program B',	desc: 'Highlighting a performance problem',	hardware: hardXP, file: 'program-33' },
+		{ id: 240,	label: 'Program A',	desc: 'Highlighting a performance problem',	hardware: hardXP, file: 'program-40' },
+		{ id: 241,	label: 'Program B',	desc: 'Highlighting a performance problem',	hardware: hardXP, file: 'program-41' },
+		{ id: 244,	label: 'Program B',	desc: 'Highlighting a performance problem',	hardware: hardXP, file: 'program-44' },
+		{ id: 250,	label: 'Program A',	desc: 'Highlighting a performance problem',	hardware: hardXP, file: 'program-50' },
+		{ id: 251,	label: 'Program B',	desc: 'Highlighting a performance problem',	hardware: hardXP, file: 'program-51' },
+		{ id: 252,	label: 'Program C',	desc: 'Highlighting a performance problem',	hardware: hardXP, file: 'program-52' },
+		{ id: 261,	label: 'Program B',	desc: 'Highlighting a performance problem',	hardware: hardXP, file: 'program-61' },
+		{ id: 263,	label: 'Program B',	desc: 'Highlighting a performance problem',	hardware: hardXP, file: 'program-63' },
+
+		{ id: 301,	label: 'Alt 21 a',		desc: 'Highlighting a performance problem',	hardware: hardSTG, file: 'alt-21-a' },
+		{ id: 302,	label: 'Alt 21 b',		desc: 'Highlighting a performance problem',	hardware: hardSTG, file: 'alt-21-b' },
+		{ id: 303,	label: 'Alt 31 a',		desc: 'Highlighting a performance problem',	hardware: hardSTG, file: 'alt-31-a' },
+		{ id: 304,	label: 'Alt 31 b',		desc: 'Highlighting a performance problem',	hardware: hardSTG, file: 'alt-31-b' },
+		{ id: 305,	label: 'Alt 31 c',		desc: 'Highlighting a performance problem',	hardware: hardSTG, file: 'alt-31-c' },
+		{ id: 306,	label: 'Alt 31 d',		desc: 'Highlighting a performance problem',	hardware: hardSTG, file: 'alt-31-d' },
+		{ id: 307,	label: 'Alt 61',		desc: 'Highlighting a performance problem',	hardware: hardSTG, file: 'alt-61' },
+		{ id: 262,	label: 'Alt 62',		desc: 'Highlighting a performance problem',	hardware: hardSTG, file: 'alt-62' },
+
 		{ id: 1006,	label: 'Dining ph.  6',	desc: 'Dining philosopher problem for 6 covers',	hardware: hardSTG,	 file: 'philosophers006', timeStep: 50, disabled: true },
 		{ id: 1012,	label: 'Dining ph. 12',	desc: 'Dining philosopher problem for 12 covers',	hardware: hardSTG,	 file: 'philosophers012', timeStep: 50 },
 		{ id: 1045,	label: 'Dining ph. 45',	desc: 'Dining philosopher problem for 45 covers',	hardware: hardSTG,	 file: 'philosophers045', timeStep: 50, v: 4, disabled: true },
@@ -159,7 +187,7 @@ var profileMap = {
 // Global treatment
 profileMap.all.forEach(function (profile) {
 	// Missing data
-	if (! profile.timeStep) profile.timeStep = 25;
+	if (! profile.timeStep) profile.timeStep = 50;
 	if (! profile.v) profile.v = 5;
 	
 	// Indexing
@@ -300,6 +328,7 @@ function loadData(profile, notCreateCache) {
 		console.log("[" + profile.id + "] " + profile.file + " cache opened");
 
 		// Check old version
+		// or check if it is the test version
 		if (profile.data.info.version != VERSION) {
 
 			// Delete file
@@ -360,7 +389,7 @@ function computeData(profile, raw1, raw2, raw3, raw4, raw5, raw6) {
 	var data = {
 		info: {
 			version:		VERSION,
-			capability:		[!!raw1, !!raw2, !!raw3, !!raw4 && raw4.length > 0, !!raw5, !!raw6],
+			capability:		[!!raw1, !!raw2, !!raw3, !!raw4, !!raw5, !!raw6],
 			timeStep:		profile.timeStep,
 			timeMin:		0,
 			timeMax:		0,
@@ -380,7 +409,6 @@ function computeData(profile, raw1, raw2, raw3, raw4, raw5, raw6) {
 			lock_hold:		0,
 			threads:		0,
 			bandwidth:		0,
-			sysBandwidth:	0,
 			l1_miss:		0,
 			l1_invalid:		0,
 			l2_miss:		0,
@@ -456,7 +484,6 @@ function computeData(profile, raw1, raw2, raw3, raw4, raw5, raw6) {
 				lock_failure:	0,	// how many threads failing lock acquisition
 				
 				bandwidth:		0,	// how many memory bandwidth is used in bytes
-				sysBandwidth:	0,	// how many memory bandwidth is used by the system in bytes
 				
 				l1_miss:		0,	// how many L1 miss
 				l1_invalid:		0,	// how many L1 invalidations (cache coherency misses)
@@ -488,6 +515,7 @@ function computeData(profile, raw1, raw2, raw3, raw4, raw5, raw6) {
 	 *		states
 	 *
 	 */
+	console.log('1> start states treatment');
 	// Analyse element by element and group them by time
 	var statThreads = {};
 	raw1.forEach(function(element) {
@@ -590,6 +618,7 @@ function computeData(profile, raw1, raw2, raw3, raw4, raw5, raw6) {
 	 *		switches
 	 *
 	 */
+	console.log('2> start switches treatment');
 	// Sequential sequences
 	var coreLength = profile.hardware.data.lcores;
 	var coreActivity = [];
@@ -768,6 +797,7 @@ function computeData(profile, raw1, raw2, raw3, raw4, raw5, raw6) {
 	 *		dala locality
 	 *
 	 */
+	console.log('3> start locality treatment');
 	// Var
 //	var property;
 //	var steps = +raw3.info.duration / timeStep;
@@ -825,6 +855,7 @@ function computeData(profile, raw1, raw2, raw3, raw4, raw5, raw6) {
 	 *		locks
 	 *
 	 */
+	console.log('4> start locks treatment');
 	// Vars
 	var lock_map = {};	// current owner of a lock				(key: 'lock-id')
 	var hold_map = {};	// when a thread starts holding a lock	(key: 'lock-id')
@@ -986,46 +1017,24 @@ function computeData(profile, raw1, raw2, raw3, raw4, raw5, raw6) {
 	 *		memory bandwidth
 	 *
 	 */
+	console.log('5> start bandwidth treatment');
 	var systemBandwidth = [];
 	if (raw5 != null) {
 		// Treat all elements
 		raw5.forEach(function(element) {
-			// Compute time ID
-			timeEvent = Math.round(element.dtime / 10000);
-			
 			// Append memory bandwidth
-			if (element.cid % 2 == 0 && element.type == 'drambw') {
+			if (element.type == 'MC_read' || element.type == 'MC_write') {
+				// Compute time ID
+				timeEvent = Math.round(element.dtime / 10000);
 
 				// Check time frame existance
 				checkFrame(timeEvent);
-				
-				// Append memory bandwidth
+
+				// Append memory bandwidth (read or write)
 				data.stats.bandwidth += element.value | 0;
 				data.frames[timeEvent].bandwidth += element.value | 0;
-				data.frames[timeEvent].c[element.cid / 2].bandwidth = element.value;
-			}
-			
-			// Save system + app memory bandwidth
-			else if (element.type == 'MC_read' || element.type == 'MC_write') {
-				systemBandwidth[timeEvent] = (systemBandwidth[timeEvent] | 0) + (element.value | 0);
 			}
 		});
-		
-		// Compute system events
-		var diff;
-		systemBandwidth.forEach(function(value, t) {
-			// Check time frame existance
-			checkFrame(t);
-			
-			// Compute value
-			diff = value - data.frames[t].bandwidth;
-			if (diff < 0) console.error('5> ERROR negative bandwidth', t, 'total', value, 'app', data.frames[t].bandwidth);
-			diff = Math.max(diff, 0);
-			
-			// Append system memory bandwidth
-			data.frames[t].sysBandwidth = diff;
-			data.stats.sysBandwidth += diff;
-		})
 	}
 
 
@@ -1035,8 +1044,12 @@ function computeData(profile, raw1, raw2, raw3, raw4, raw5, raw6) {
 	 *		cache coherency misses
 	 *
 	 */
+	console.log('6> start coherency treatment');
 	var coreCount = profile.hardware.data.lcores;
 	var lxID, pxID, value, cxID;
+
+	// Treat coherency
+	console.log('6-> treat coherency');
 	if (raw6 != null) raw6.forEach(function(element) {
 		if (element.pid == profile.pid) {
 			// Compute time ID
@@ -1066,8 +1079,11 @@ function computeData(profile, raw1, raw2, raw3, raw4, raw5, raw6) {
 			data.frames[timeEvent].c[cxID][pxID] = (data.frames[timeEvent].c[cxID][pxID] | 0) + value;
 		}
 	});
+	
+	// Truncate coherency
+	console.log('6-> truncate coherency');
 	if (raw6 != null) Object.keys(data.frames).forEach(function(timeEvent) {
-		if (timeEvent >= 0 && data.frames[timeEvent].c['0'].l1_invalid) {
+		if (timeEvent >= 0 && timeEvent <= data.info.timeMax && data.frames[timeEvent].c['0'].l1_invalid) {
 			// Truncate values
 			data.frames[timeEvent].l1_invalid = Math.min(data.frames[timeEvent].l1_invalid, data.frames[timeEvent].l1_miss);
 			data.frames[timeEvent].l2_invalid = Math.min(data.frames[timeEvent].l2_invalid, data.frames[timeEvent].l2_miss);
@@ -1086,7 +1102,6 @@ function computeData(profile, raw1, raw2, raw3, raw4, raw5, raw6) {
 			data.stats.l1_miss += data.frames[timeEvent].l1_miss;
 			data.stats.l2_miss += data.frames[timeEvent].l2_miss;
 		}
-		
 	});
 	
 
@@ -1095,6 +1110,7 @@ function computeData(profile, raw1, raw2, raw3, raw4, raw5, raw6) {
 	 *	Post treatment
 	 *
 	 */
+	console.log('7> start post treatment');
 	data.info.duration = data.info.timeMax + timeStep;
 	
 
@@ -1104,6 +1120,7 @@ function computeData(profile, raw1, raw2, raw3, raw4, raw5, raw6) {
 	 *	Done!
 	 *
 	 */
+	console.log('8> done!');
 	return data;
 }
 

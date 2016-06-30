@@ -277,6 +277,60 @@ app.factory('decks', ['facets', 'colours', function(facets, colours) {
 	// Fruit salad
 	var m =		JSON.parse(JSON.stringify(facets.m));
 	m.colors = ['#b6e3bc', '#b6e3da', '#b6cee3', '#bcb6e3', '#dab6e3', '#e3b6ce', '#e3bcb6', '#e3dab6'];
+
+	// Clues for thread states (running, waiting, ready, ...)
+	var clues_threadStates = [
+		{
+			img:	'limit_r',
+			t:		'Executing normally',
+			good:	true
+		}, {
+			img:	'limit_r-y',
+			t:		'Bad threads to cores ratio',
+			q:		'More parallelism in application than hardware can exploit',
+			i:		'Reduce number of threads',
+			for:	'lb'
+		}, {
+			img:	'limit_i',
+			t:		'Undersubscription',
+			i:		'Try adding threads',
+			q:		['Program could consume more CPU time','Program could be waiting for data dependencies'],
+			for:	'lb'
+		}, {
+			img:	'limit_i-lw',
+			t:		['Chains of data dependencies', 'Bad threads to cores ratio'],
+			for:	'lb'
+		}, {
+			img:	'limit_sys',
+			t:		'Overloaded system',
+			i:		'Close unecessary programs',
+			q:		'Background tasks are using too many resources.'
+		}, {
+			img:	'limit_i-r',
+			alt:	'well distributed',
+			t:		'Undersubscription',
+			q:		'The work is not appropriately divided',
+			i:		'Program could consume more CPU time (try adding threads)',
+			for:	'tg'
+		}, {
+			img:	'limit_r-y',
+			t:		'Oversubscription',
+			q:		'More parallelism in application than hardware can exploit',
+			i:		'Reduce number of threads',
+			for:	'tg'
+		}, {
+			img:	'limit_sys-y',
+			t:		'Oversubscription',
+			q:		'Other programs are consuming CPU time',
+			i:		'Close unecessary programs',
+			for:	'tg'
+		}, {
+			img:	'limit_i-lw',
+			t:		'Low work to sync. ratio',
+			q:		['Many threads contend for few locks','Possible deadlock scenario'],
+			for:	'sy'
+		}
+	];
 	
 	return {
 		cacheBreackdown: {
@@ -295,7 +349,22 @@ app.factory('decks', ['facets', 'colours', function(facets, colours) {
 				],
 				options: { disablePrelist: true }
 			},
-			clues: [],
+			clues: [{
+					img:	'coord_5',
+					alt:	'Address translation',
+					t:		'TLB Locality',
+					q:		'poor TLB Locality'
+				}, {
+					img:	'coord_6-7',
+					alt:	'Loading from L2 & L3',
+					t:		'Cache locality',
+					q:		'poor cache locality and possibly also have other issues'
+				}, {
+					img:	'coord_9',
+					alt:	'Swapping',
+					t:		'Page faults'
+				}
+			],
 			settings: [
 				{ property: 'colorMode', value: 0, type: 'select', label: 'Color by', choices: ['good <--> poor locality', 'process', 'thread'] },
 				{ property: 'colorThreshold', value: 20, type: 'range', label: 'Locality threshold', unit: '%', min: 5, max: 95, step: 5, depends: ['colorMode', 0] },
@@ -318,11 +387,25 @@ app.factory('decks', ['facets', 'colours', function(facets, colours) {
 					{ b: '%', t: 'Percent',	d: 'maximum possible cache line invalidations per cache (L1 or L2)', c: colours.list.fGrey}
 				],
 				data: [
-					{ b: '▮', 	d: '',	f: facets.il1 },
-					{ b: '▮', 	d: '',	f: facets.il2 }
+					{ b: '▮', 	d: 'L1 cache misses due to invalidation',	f: facets.il1, t: 'L1 invalidation misses' },
+					{ b: '▮', 	d: 'L2 cache misses due to invalidation',	f: facets.il2, t: 'L2 invalidation misses' }
 				]
 			},
-			clues: [],
+			clues: [{
+					img:	'mean',
+					good:	true,
+					t:		'No sharing',
+					q:		'No sharing of data between threads'
+				}, {
+					img:	'mean_il1',
+					t:		'Coarse sharing',
+					q:		'Lots of coarse-grained data sharing (between threads on different core)'
+				}, {
+					img:	'mean_il2',
+					t:		'Fine sharing',
+					q:		'Lots of fine-grained data sharing (between threads on the same core)'
+				}
+			],
 			settings: []
 		},
 		cacheMisses: {
@@ -348,35 +431,60 @@ app.factory('decks', ['facets', 'colours', function(facets, colours) {
 					{ b: '▮', f: facets.hpf,	d: 'hard page faults, swapping to disk' }
 				]
 			},
-			clues: [],
+			clues: [{
+				f:		facets.ipc,
+				t: 		'Low memory access',
+//				img:	'percent_ipc',
+				good:	true
+			}, {
+				f:		facets.l2,
+//				img:	'percent_l2',
+				alt:	'many loads from L3',
+				t:		['True sharing', 'Sharing of lock data structures', 'Sharing data between distant cores'],
+				for:	'ds'
+			}, {
+				f:		facets.l3,
+//				img:	'percent_l3',
+				alt:	'many loads from RAM',
+				t:		'True sharing',
+				for:	'ds'
+			}, {
+				img:	'plain_miss',
+				t:		'Poor cache locality',
+				q:		'Many cache misses at all levels',
+				for:	'dl'
+			}, {
+				f:		facets.tlb,
+				alt:	'lots of address trans.',
+				t:		['TLB Locality', 'DRAM memory pages', 'Page faults',],
+				for:	'dl'
+			}, {
+				f:		facets.l3,
+				alt:	'many loads from RAM',
+				t:		['Cache locality', 'TLB Locality'],
+				for:	'dl'
+			}, {
+				f:		facets.hpf,
+				alt:	'lots of swapping',
+				t:		['DRAM memory pages', 'Page faults'],
+				for:	'dl'
+			}, {
+				f:		facets.l2,
+				alt:	'many loads from L3',
+				t:		'False data sharing',
+				for:	'rs'
+			}, {
+				f:		facets.l3,
+				alt:	'many loads from RAM',
+				t:		'False data sharing',
+				for:	'rs'
+			}, {
+				f:		facets.hpf,
+				alt:	'lots of swapping',
+				t:		'Exceeding mem. capacity',
+				for:	'rs'
+			}],
 			settings: []
-		},
-		coreBandwidth: {
-			handling: {
-				time: TIME_PROFILE,
-			},
-			graph : {
-				h:			limit,		// threads (color)
-				lines:		buildPhysicalCores,
-				melody_c:	facets.e,
-				melody_c_max:	function(profile, timeStep) { return Math.round(profile.hardware.data.bandwidth * timeStep / profile.hardware.data.pcores / 1048576); },
-				// in theory, a single core could use all the bandwidth. However, for the graph,
-				// we devided the max by the number of physical cores (half number of cores).
-				// This is totally arbitrary.
-			},
-			data: [facets.e],
-			legend: {
-				axis: [
-					{ b: '⊢', f: limit,	t: 'Cores',	d: 'each line represents a core' }
-				],
-				data: [
-					{ b: '▮', f: facets.e,	d: 'usage by core' },
-				]
-			},
-			clues: [],
-			settings: [
-				{ property: 'melodyHeight', value: 9, type: 'range', label: 'Inactivity height', unit: 'pixels', min: 6, max: 12, step: 1 }
-			]
 		},
 		coreIdle: {
 			handling: {
@@ -396,7 +504,24 @@ app.factory('decks', ['facets', 'colours', function(facets, colours) {
 					{ b: '▮', f: facets.i, t: 'Idle', d: 'time spent by the core waiting for a thread of this program to run (work from other programs is considered as idle time)' }
 				]
 			},
-			clues: [],
+			clues: [{
+					img:	'lines',
+					t:		'All cores executing',
+					good:	true
+				}, {
+					img:	'lines_i-alt',
+					t:		'Alternating s./p. execution'
+				}, {
+					img:	'lines_i-bad',
+					t:		'Bad load balance',
+					q:		'Some cores are under-used and some fully-used'
+				}, {
+					img:	'lines_i-full',
+					t:		'Undersubscription',
+					i:		'Try adding threads',
+					q:		['Program could consume more CPU time','Program could be waiting for data dependencies'],
+				}
+			],
 			settings: [
 				{ property: 'melodyHeight', value: 9, type: 'range', label: 'Inactivity height', unit: 'pixels', min: 6, max: 12, step: 1 }
 			]
@@ -421,11 +546,27 @@ app.factory('decks', ['facets', 'colours', function(facets, colours) {
 			legend: {
 				axis: [],
 				data: [
-					{ b: '▮', 	d: '',	f: facets.il1 },
-					{ b: '▮', 	d: '',	f: facets.il2 }
+					{ b: '▮', 	d: 'L1 cache misses due to invalidation',	f: facets.il1, t: 'L1 invalidation misses' },
+					{ b: '▮', 	d: 'L2 cache misses due to invalidation',	f: facets.il2, t: 'L2 invalidation misses' }
 				]
 			},
-			clues: [],
+			clues: [{
+					img:	'blank',
+					alt: 	'few invalidations',
+					t:		'Low sharing',
+					q:		'Different threads rarely access the same data'
+				}, {
+					f:		facets.il1,
+					t:		'Coarse sharing',
+					alt:	'many L1 invalidation misses',
+					q:		'Lots of coarse-grained data sharing (between threads on different core)'
+				}, {
+					f:		facets.il2,
+					t:		'Fine sharing',
+					alt:	'many L2 invalidation misses',
+					q:		'Lots of fine-grained data sharing (between threads on the same core)'
+				}
+			],
 			settings: []
 		},
 		lockContentions: {
@@ -446,13 +587,13 @@ app.factory('decks', ['facets', 'colours', function(facets, colours) {
 					{ b: '◒',	f: facets.r,	t: 'Core capacity',				d: 'time spent in thread execution, idle, or used by the OS' }
 				],
 				data: [
-					{ b: '▮', f: facets.lw,		d: 'threads are not ready to be processed because they waiting to acquire a lock' },
+					{ b: '▮', f: facets.lw,		d: 'threads are waiting to acquire a lock' },
 					{ b: '▮', f: facets.r,		d: 'thread is actively executing', },
 					{ b: '▮', f: facets.i,		d: 'no thread running on core' },
 					{ b: '▮', f: facets.sys,	d: 'Core occupied by other program',	 c: colours.list.fGrey }
 				]
 			},
-			clues: [],
+			clues: clues_threadStates,
 			settings: []
 		},
 		lockCounts: {
@@ -474,10 +615,41 @@ app.factory('decks', ['facets', 'colours', function(facets, colours) {
 				],
 				data: [
 					{ b: '▮', t: 'Lock with contention',	d: 'number of failed lock acquisitions',	f: facets.lf },
-					{ b: '▮', t: 'Lock without contention',	d: 'number of succesful lock acquisitions',	f: facets.ls }
+					{ b: '▮', t: 'Lock without contention',	d: 'number of successful lock acquisitions',	f: facets.ls }
 				]
 			},
-			clues: [],
+			clues: [{
+				img:	'mean',
+				t:		'No synchronisation',
+				q:		'Very few locks',
+				good:	true
+			}, {
+				img:	'mean_ls',
+				t:		'No contention',
+				q:		'Locking without contention',
+				good:	true
+			}, {
+				img:	'mean_lf-half',
+				good:	true,
+				t:		'Low contention',
+				q:		'Very little contention for locks'
+			}, {
+				img:	'mean_lf',
+				t:		['Low work to sync. ratio', 'Badly-behaved spinlocks'],
+				q:		'Threads spend too much time acquiring locks',
+				for:	'sy'
+			}, {
+				img:	'mean_lf-full',
+				t:		['Low work to sync. ratio', 'Badly-behaved spinlocks'],
+				q:		'Threads spend too much time acquiring locks',
+				for:	'sy'
+			}, {
+				img:	'mean_lf-full',
+				t:		['False data sharing', 'Competition between threads sharing a cache'],
+				q:		'High contention',
+				i:		'Try dividing the work more coarsely',
+				for:	'rs'
+			}],
 			plans: [
 				{ id: 1, label: 'log₂', property: 'useLogScale' },
 				{ id: 2, label: 'linear', property: 'useLinearScale' },
@@ -493,20 +665,39 @@ app.factory('decks', ['facets', 'colours', function(facets, colours) {
 				time: TIME_PROFILE,
 			},
 			graph: {
-				v:		[facets.e, facets.ue, facets.se],
+				v:		[facets.e, facets.ue], // , facets.se
 				limit:	limit
 			},
 			data: [facets.e, facets.ue],
-			focus: [facets.e, facets.ue, facets.se],
+			focus: [facets.e, facets.ue], // , facets.se
 			legend: {
 				axis: [],
 				data: [
 					{ b: '▮', f: facets.e,	d: 'used by this program' },
 					{ b: '▮', f: facets.ue,	d: 'available memory bandwidth' },
-					{ b: '▮', f: facets.se,	d: 'used by other programs' }
+//					{ b: '▮', f: facets.se,	d: 'used by other programs' }
 				]
 			},
-			clues: [],
+			clues: [{
+				img:	'percent_i',
+				t:		'Low memory requirement',
+				good:	true
+			}, {
+				img:	'percent_e-sys',
+				t: 		'Competing for memory',
+				q:		'Other programs are using too much memory',
+				i:		'Close uncessary programs'
+			}, {
+				img:	'percent_e',
+				t:		'High remote memory access',
+				q:		['The program is memory-hungry','May indicate <strong>Sharing of data between CPUs on NUMA systems</strong>'],
+				for:	'ds'
+			}, {
+				img:	'percent_e',
+				t:		'Exceeding mem. bandwidth',
+				q:		'The program is memory-hungry',
+				for:	'rs'
+			}],
 			settings: []
 		},
 		threadChains: {
@@ -535,13 +726,33 @@ app.factory('decks', ['facets', 'colours', function(facets, colours) {
 					{ b: '⊢', f: limit,	t: 'Threads',	d: 'each line represents a thread complying with the start and end times' },
 				],
 				data: [
-					{ b: '×', f: facets.lf,									d: 'attempt to acquire a lock' },
-					{ b: '¦', f: facets.lf,									d: 'indicating which thread hold the lock' },
-					{ b: '|', f: facets.ls,	t: 'Lock acquire or release',	d: '', 								c: colours.list.dTurquoise},
-					{ b: '▰', f: facets.ls,	t: 'Lock hold',					d: '' },
+					{ b: '[ ]',	c: facets.ls.colours.f,	t: 'Lock acquire and release',	d: 'the lock events' },
+					{ b: '▮',	f: facets.ls,			t: 'Lock hold',					d: 'a thread is holding a lock' },
+					{ b: '┊',	f: facets.lf,			t: 'Lock dependency',			d: 'indicating which thread holds the lock (customisable)' },
+					{ b: '×',	f: facets.lf,			t: 'Lock failure',				d: 'attempt to acquire a lock' },
 				]
 			},
-			clues: [],
+			clues: [{
+					img:	'lines',
+					t:		'No locking',
+					good:	true
+				}, {
+					img:	'lines_flow',
+					t:		'Locking without contention',
+					good:	true
+				}, {
+					img:	'lines_contentions',
+					t:		'Sharing of lock data structures',
+					i:		'Locks are shared between many threads',
+					for:	'ds'
+				}, {
+					img:	'lines_dependency',
+					t:		'Chains of data dependencies',
+					q:		'Data dependencies force serial execution phases',
+					i:		'Try more fine-grained locking',
+					for:	'lb'
+				}
+			],
 			settings: [
 				{ property: 'holdingMode', value: 1, type: 'select', label: 'Thread holding the lock', choices: ['hide', 'show on mouve hover', 'show'] },
 			]
@@ -567,10 +778,27 @@ app.factory('decks', ['facets', 'colours', function(facets, colours) {
 					{ b: '▮', d:'thread migrates to another core', f: facets.m }
 				]
 			},
-			clues: [
-				{ f: facets.m,	t: 'Thread migrations',							d: 'too many migrations' },
-				{ f: facets.m,	t: 'Alternating sequential/parallel execution',	d: 'alternating period of high and low thread migrations' }
-			],
+			clues: [{
+				img: 'mean',
+				t:	 'Low thread migration',
+				good: true
+			}, {
+				img: 'mean_m',
+				t:	 'Average thread migration',
+				good: true
+			}, {
+				img: 'mean_m-full',
+				t: 'Oversubscription',
+				q: 'Too many threads are waiting to execute',
+				i: 'Reduce the number of threads',
+				for: 'tg'
+			}, {
+				img: 'mean_m-alt',
+				t: 'Alternating s./p. execution',
+				q: 'Sequential phases limit performance of the system',
+				i: 'Try to eliminate sequential phases and load balance better',
+				for: 'lb'
+			}],
 			plans: [
 				{ id: 1, label: 'log₂', property: 'useLogScale' },
 				{ id: 2, label: 'linear', property: 'useLinearScale' },
@@ -602,9 +830,20 @@ app.factory('decks', ['facets', 'colours', function(facets, colours) {
 					{ b: '▮', d: 'cores switching from one thread to another', f: facets.s }
 				]
 			},
-			clues: [
-				{ f: facets.s,	t: 'Oversubscription',	d: 'high frequency' }
-			],
+			clues: [{
+				img: 'mean',
+				t:	 'Low context switching',
+				good: true
+			}, {
+				img: 'mean_s',
+				t:	 'Average context switching',
+				good: true
+			}, {
+				img: 'mean_s-full',
+				t: 'Oversubscription',
+				q: 'Too many threads are waiting to execute',
+				i: 'Reduce the number of threads'
+			}],
 			plans: [
 				{ id: 1, label: 'log₂', property: 'useLogScale' },
 				{ id: 2, label: 'linear', property: 'useLinearScale' },
@@ -641,12 +880,7 @@ app.factory('decks', ['facets', 'colours', function(facets, colours) {
 					{ b: '▮', f: facets.sys,	d: 'Core occupied by other program',	 c: colours.list.fGrey }
 				]
 			},
-			clues: [
-				{ f: facets.y,	t: 'Oversubscription', 			d: 'too many threads' },
-				{ f: facets.y,	t: 'Thread migrations', 		d: 'too many threads' },
-				{ f: facets.y,	t: 'Bad thread to core ratio', 	d: 'too many threads' },
-				{ f: facets.i,	t: 'Underscubscription', 		d: 'not enough threads' }
-			],
+			clues: clues_threadStates,
 			settings: []
 		},
 		threadStates: {
@@ -673,12 +907,7 @@ app.factory('decks', ['facets', 'colours', function(facets, colours) {
 					{ b: '▮', f: facets.sys,	d: 'Core occupied by other program',	 c: colours.list.fGrey }
 				]
 			},
-			clues: [
-				{ f: facets.y,	t: 'Oversubscription', 			d: 'too many threads' },
-				{ f: facets.y,	t: 'Thread migrations', 		d: 'too many threads' },
-				{ f: facets.y,	t: 'Bad thread to core ratio', 	d: 'too many threads' },
-				{ f: facets.i,	t: 'Underscubscription', 		d: 'not enough threads' }
-			],
+			clues: clues_threadStates,
 			settings: []
 		},
 		threadFruitSalad: {
@@ -702,12 +931,46 @@ app.factory('decks', ['facets', 'colours', function(facets, colours) {
 					{ b: '◧', t: 'Cores',	d: 'core to which a thread is attached to (one color by core)',	 c: colours.list.fGrey }
 				]
 			},
-			clues: [
-				{ f: facets.m,	t: 'Task start/stop overhead',	d: 'too many creations' },
-				{ f: limit,		t: 'Oversubscription',			d: 'too many threads' },
-				{ f: limit,		t: 'Thread migrations',			d: 'too many threads' },
-				{ f: facets.m,	t: 'Thread migrations',			d: 'too many migrations' },
-				{ f: facets.m,	t: 'Task start/stop overhead',	d: 'too short lifetime' }
+			clues: [{
+					img:	'lines_m-full',
+					plan:	'rate',
+					t:		'Oversubscription',
+					q:		'Too many threads are waiting to execute',
+					i:		'Reduce the number of threads'
+				}, /*{
+					img:	'lines_m-alt',
+					plan:	'rate',
+					t:		'Alternating s./p. execution',
+					q:		'Too many threads are waiting to execute',
+					i:		'Reduce the number of threads'
+				}, */{
+					img:	'lines',
+					plan:	'rate / events',
+					good:	true
+				}, {
+					img:	'lines_m-low-rate',
+					plan:	'events',
+					good:	true
+				}, {
+					img:	'lines_m-high-rate',
+					plan:	'events',
+					t:		'Thread migrations',
+					q:		'Low affinity',
+					i:		['Reduce the number of threads', 'Bind threads to specific cores']
+				}, {
+					img:	'lines_affinity',
+					plan:	'core affinity',
+					good:	true,
+					t:		'High affinity',
+					q:		'Threads rarely migrate'
+				}, {
+					img:	'lines_fruitsalad',
+					alt:	'fruit salad effect',
+					plan:	'core affinity',
+					t:		'Thread migrations',
+					q:		'Low affinity',
+					i:		['Reduce the number of threads', 'Bind threads to specific cores']
+				}
 			],
 			plans: [
 				{ id: 1, label: 'rate', property: 'groupTicks' },
@@ -740,7 +1003,28 @@ app.factory('decks', ['facets', 'colours', function(facets, colours) {
 					{ b: '▮', f: facets.lw,						d: 'threads are not ready to be processed because they waiting to acquire a lock' }
 				]
 			},
-			clues: [],
+			clues: [{
+					img:	'lines',
+					t:		'No synchronisation',
+					q:		'Very few locks',
+					good:	true
+				}, {
+					img:	'lines_acquiring',
+					t:		'No contention',
+					q:		'Locking without contention',
+					good:	true
+				}, {
+					img:	'lines_lw-full',
+					alt:	'mostly waiting',
+					t:		'Low work to sync. ratio',
+					q:		'High contention',
+					i:		'Threads are mostly waiting for a lock'
+				}, {
+					img:	'lines_contentions',
+					t:		'Badly-behaved spinlocks',
+					i:		'Repeated lock acquisition failures'
+				}
+			],
 			settings: [
 				{ property: 'disableTicks', value: false, type: 'flag', label: 'Disable ticks' },
 				{ property: 'disablePeriods', value: false, type: 'flag', label: 'Disable periods' }
@@ -761,13 +1045,29 @@ app.factory('decks', ['facets', 'colours', function(facets, colours) {
 					{ b: '⊢', f: limit,	t: 'Cores',	d: 'each line represents a core, not in the right order, not with the right thread' }
 				],
 				data: [
-					{ b: '─', t: 'Sequential line',			d: 'core is idle (sequential sequence)',		f: facets.qs },
-					{ b: '▮', t: 'Sequential execution',	d: 'one core only is executing a thread',		f: facets.qs },
-					{ b: '─', t: 'Parallel line',			d: 'core is idle (parallel sequence)',			f: facets.qp },
-					{ b: '▮', t: 'Parallel execution',		d: 'more than one core is executing a thread',	f: facets.qp }
+					{ b: '░', t: '[Sequential] phase',		d: 'one core is executing a thread (could be customised)',		f: facets.qs },
+					{ b: '■', t: '[Sequential] execution',	d: 'core is executing a thread',								f: facets.qs },
+					{ b: '░', t: '[Parallel] phase',		d: 'many cores are executing a thread (could be customised)',	f: facets.qp },
+					{ b: '■', t: '[Parallel] execution',	d: 'core is executing a thread',								f: facets.qp },
+					{ b: '─', t: 'line',					d: 'core is idle',												f: limit }
 				]
 			},
-			clues: [],
+			clues: [{
+					img:	'lines_qp',
+					good:	true,
+					alt:	'Mostly parallel execution',
+					t:		'High parallelisation'
+				}, {
+					img:	'lines_qp-qs-alt',
+					t: 'Alternating s./p. execution',
+					q: 'Sequential phases limit performance of the system',
+					i: 'Try to eliminate sequential phases and load balance better',
+				}, {
+					img:	'lines_qs',
+					alt:	'Mostly serial execution',
+					t:		'Low parallelisation'
+				}
+			],
 			params: [
 				{ property: 'lineHeight', value: 10 }
 			],
@@ -775,7 +1075,7 @@ app.factory('decks', ['facets', 'colours', function(facets, colours) {
 				{ property: 'disableLine', value: false, type: 'flag', label: 'Core line', desc: 'hide core line' },
 				{ property: 'disableSequenceDashs', value: false, type: 'flag', label: 'Core executing', desc: 'hide core executing' },
 				{ property: 'disableSequenceBackgound', value: false, type: 'flag', label: 'Parallel sequences', desc: 'hide backgound sequences (parallel/sequential)' },
-				{ property: 'sequenceThreshold', value: 1, type: 'range', label: 'Parallel threshold', unit: 'running threads', min: 0, max: 3, step: 1 },
+				{ property: 'sequenceThreshold', value: 1, type: 'range', label: 'Parallel threshold', unit: 'running threads', min: 1, max: 7, step: 1 },
 			]
 		}
 	};
@@ -795,20 +1095,19 @@ app.factory('widgets', ['decks', function(decks) {
 /* 00 */	cacheBreackdown:	{ id: id(),	c: CAPABILITY_LOCALITY,	 file: 'chart-d3-pcoords',	deck: decks.cacheBreackdown,	wide: true,		title: 'Breakdown of cost by cause of locality misses',				desc: ''},
 /* 01 */	cacheInvalidations:	{ id: id(),	c: CAPABILITY_COHERENCY, file: 'chart-percent',		deck: decks.cacheInvalidations,	wide: false,	title: 'Proportion of cache line invalidations',	                desc: 'A cache line invalidation can occur when multiple cores modify a shared memory location'},
 /* 02 */	cacheMisses:		{ id: id(),	c: CAPABILITY_LOCALITY,	 file: 'chart-percent',		deck: decks.cacheMisses,		wide: false,	title: 'Proportion of locality misses',				                desc: 'Data cache misses as a proportion of instructions executed'},
-/* 03 */	coreBandwidth:		{ id: id(),	c: CAPABILITY_MEMORY,	 file: 'chart-lines',		deck: decks.coreBandwidth,		wide: false,	title: 'Remote memory access by core',								desc: 'Memory bandwidth'},
 /* 04 */	coreIdle:			{ id: id(),	c: CAPABILITY_STATE,	 file: 'chart-lines',		deck: decks.coreIdle,			wide: false,	title: 'Idle cores',												desc: 'Times that cores are idle'},
 /* 05 */	coreInvalidations:	{ id: id(),	c: CAPABILITY_COHERENCY, file: 'chart-d3-caches',	deck: decks.coreInvalidations,	wide: true,		title: 'Breakdown of cache line invalidations by core',             desc: ''},
-/* 06 */	coreSequences:		{ id: id(),	c: CAPABILITY_STATE,	 file: 'chart-lines',		deck: decks.sequences,			wide: false,	title: 'Execution phases',                 							desc: 'phase of execution (sequential or parallel)'},
+/* 06 */	coreSequences:		{ id: id(),	c: CAPABILITY_STATE,	 file: 'chart-lines',		deck: decks.sequences,			wide: false,	title: 'Execution phases',                 							desc: 'Phase of execution (sequential or parallel)'},
 /* 07 */	lockCounts:			{ id: id(),	c: CAPABILITY_LOCK,		 file: 'chart-units',		deck: decks.lockCounts,			wide: false,	title: 'Lock contentions',											desc: 'Locking with and without contention'},
 /* 08 */	lockContentions:	{ id: id(),	c: CAPABILITY_LOCK,		 file: 'chart-percent',		deck: decks.lockContentions,	wide: false,	title: 'Time waiting for a lock',									desc: ''},
 /* 09 */	memBandwidth:		{ id: id(),	c: CAPABILITY_MEMORY,	 file: 'chart-percent',		deck: decks.memBandwidth,		wide: false,	title: 'Remote memory access',										desc: 'Memory bandwidth'},
-/* 10 */	threadChains:		{ id: id(),	c: CAPABILITY_LOCK,		 file: 'chart-lines',		deck: decks.threadChains,		wide: false,	title: 'Chains of dependencies on locks',							desc: 'synchronisations and waiting between threads'},
-/* 11 */	threadFruitSalad:	{ id: id(),	c: CAPABILITY_STATE,	 file: 'chart-threads',		deck: decks.threadFruitSalad,	wide: false,	title: 'Migrations by thread',										desc: 'creation, running, moving between cores, termination'},
+/* 10 */	threadChains:		{ id: id(),	c: CAPABILITY_LOCK,		 file: 'chart-lines',		deck: decks.threadChains,		wide: false,	title: 'Chains of dependencies on locks',							desc: 'Synchronisations, waiting and dependencies (mouseover) between threads '},
+/* 11 */	threadFruitSalad:	{ id: id(),	c: CAPABILITY_STATE,	 file: 'chart-threads',		deck: decks.threadFruitSalad,	wide: false,	title: 'Migrations by thread',										desc: 'Creation, running, moving between cores, termination'},
 /* 12 */	threadLocks:		{ id: id(),	c: CAPABILITY_LOCK,		 file: 'chart-threads',		deck: decks.threadLocks,		wide: false,	title: 'Time each thread spends waiting for locks',					desc: ''},
-/* 13 */	threadMigrations:	{ id: id(),	c: CAPABILITY_SWITCH,	 file: 'chart-units',		deck: decks.threadMigrations,	wide: false,	title: 'Rate of thread migrations',									desc: 'thread switching the core on which it is executing'},
-/* 14 */	threadStates:		{ id: id(),	c: CAPABILITY_STATE,	 file: 'chart-percent',		deck: decks.threadStates,		wide: false,	title: 'Breakdown of thread states compared to number of cores',	desc: 'number of threads compared to number of cores'},
-/* 15 */	threadAllStates:	{ id: id(),	c: CAPABILITY_STATE,	 file: 'chart-percent',		deck: decks.threadAllStates,	wide: false,	title: 'Breakdown of thread states compared to number of cores',	desc: 'number of threads compared to number of cores'},
-/* 16 */	threadSwitches:		{ id: id(),	c: CAPABILITY_SWITCH,	 file: 'chart-units',		deck: decks.threadSwitches,		wide: false,	title: 'Core switching the thread it is executing',					desc: 'thread switches'},
+/* 13 */	threadMigrations:	{ id: id(),	c: CAPABILITY_SWITCH,	 file: 'chart-units',		deck: decks.threadMigrations,	wide: false,	title: 'Rate of thread migrations',									desc: 'Thread switching the core on which it is executing'},
+/* 14 */	threadStates:		{ id: id(),	c: CAPABILITY_STATE,	 file: 'chart-percent',		deck: decks.threadStates,		wide: false,	title: 'Breakdown of thread states compared to number of cores',	desc: 'Number of threads compared to number of cores'},
+/* 15 */	threadAllStates:	{ id: id(),	c: CAPABILITY_STATE,	 file: 'chart-percent',		deck: decks.threadAllStates,	wide: false,	title: 'Breakdown of thread states compared to number of cores',	desc: 'Number of threads compared to number of cores'},
+/* 16 */	threadSwitches:		{ id: id(),	c: CAPABILITY_SWITCH,	 file: 'chart-units',		deck: decks.threadSwitches,		wide: false,	title: 'Core switching the thread it is executing',					desc: 'Thread switches'},
 	};
 }]);
 
@@ -872,11 +1171,22 @@ app.factory('categories', ['widgets', 'strips', 'facets',  function(widgets, str
 	};
 	var tg = {
 		tag: 'tg', cat: 'tg', label: 'Task granularity', title: 'Task granularity', icon: 'sliders', enabled: true,
-		description: 'In parallel programs it is often a challenge to find enough parallelism to keep the machine busy. A key focus of parallel software development is designing algorithms that expose more parallelism. However, there are overheads associated with starting, managing and switching between parallel threads. If there are too many threads, the cost of these overheads can exceed the benefits',
-		issues: ['oversubscription', 'task start/stop overhead', 'thread migration'],
-		tooltip: [
+		descriptionDash: [
 			'This category describes the level of parallelism exhibited by the application.',	
 			'For instance, if there are too many threads, the cost can exceed the benefits.',
+		],
+		descriptionDetails: [
+			'In parallel programs it is often a challenge to find enough parallelism (performing many calculations simultaneously) to keep the machine busy.\
+			 A key focus of parallel software development is designing algorithms that expose more parallelism.',
+			'However, there are overheads associated with starting, managing and switching between parallel threads.\
+			 If the tasks are too small (fine-grained parallelism), the cost of these overheads can exceed the benefits.\
+			 Conversely, if tasks are too large (coarse-grained parallelism) some resources might be under utilized.',
+			'Choosing the correct task granularity is critical.'
+		],
+		issues: [
+			{ t: 'Oversubscription',			d: 'not enough free cores available' },
+			{ t: 'Task start/stop overhead',	d: 'a dedicated thread is not justified for the amount of work performed' },
+			{ t: 'Thread migration',			d: 'excessive thread movement across cores' }
 		],
 		strips: [strips.yb, strips.i],
 		gauges: [[gauge_yb, gauge_uc], [gauge_s, gauge_m]],
@@ -884,11 +1194,22 @@ app.factory('categories', ['widgets', 'strips', 'facets',  function(widgets, str
 	};
 	var sy = {
 		tag: 'sy', cat: 'sy', label: 'Synchronisation', title: 'Synchronisation', icon: 'refresh', enabled: true,
-		description: 'Our focus is on multicore systems with a shared-memory programming model. Where data is shared and updated some sort of synchronisation is needed to ensure that all threads get a consistent view of memory. Synchronization always causes some overhead. If the algorithm requires a large amount of synchronization, the overhead can offset much of the benefits of parallelism. Perhaps the most common synchronisation mechanism is the lock; other mechanisms include barriers, semaphores, and the atomic instructions used in so-called “lock-free” and “wait-free” data structures.',
-		issues: ['Low work to synchronisation ratio', 'Lock contention', 'Lock convoy', 'Badly-behaved spinlocks'],
-		tooltip: [
+		descriptionDash: [
 			'This category helps about the synchronisation needed to ensure that all threads get a consistent view of a shared memory. The common mechanism is the lock.',	
 			'If the algorithm requires a large amount of synchronization, the overhead can offset much of the benefits of parallelism.',
+		],
+		descriptionDetails: [
+			'In a shared-memory programming model, where data is shared and updated by multiple threads;\
+			 some sort of synchronisation is needed to ensure that all threads get a consistent view of memory.',
+			'Synchronization always causes some overhead.',
+			'If the algorithm requires a large amount of synchronization, the overhead can offset much of the benefits of parallelism.\
+			 Perhaps the most common synchronisation mechanism is the lock;\
+			 other mechanisms include barriers, semaphores, and the atomic instructions used in so-called “lock-free” and “wait-free” data structures.'
+		],
+		issues: [
+			{ t: 'Low work to synchronisation ratio',	d: 'threads spend more time acquiring locks than executing' },
+			{ t: 'Lock contention',						d: 'a thread attempts to acquire a lock held by another thread' },
+			{ t: 'Badly-behaved spinlocks',				d: 'a thread repeatedly fails to acquire a lock without pause' }
 		],
 		strips: [strips.lw],
 		gauges: [[gauge_lw], [gauge_ls, gauge_lf]],
@@ -896,23 +1217,43 @@ app.factory('categories', ['widgets', 'strips', 'facets',  function(widgets, str
 	};
 	var ds = {
 		tag: 'ds', cat: 'ds', label: 'Data sharing', title: 'Data sharing', icon: 'exchange', enabled: true,
-		description: 'Threads within a process communicate through data in shared memory. Sharing data between cores involves physically transmitting the data along wires between the cores. On shared memory computers these data transfers happen automatically through the caching hardware. However these transfers nonetheless take time, with the result that there is typically a cost to data sharing, particularly when shared variables and data structures are modified.',
-		issues: ['True sharing of updated data', 'Sharing of data between CPUs on NUMA systems', 'Sharing of lock data structures', 'Sharing data between distant cores'],
-		tooltip: [
+		descriptionDash: [
 			'This category helps about the data shared between cores.',	
 			'These transfers take time, with the result that there is typically a cost to data sharing, particularly when shared variables and data structures are modified.',
 		],
+		descriptionDetails: [
+			'Threads within a process communicate through data in shared memory.\
+			 Sharing data between cores involves physically transferring the data along wires between the cores.',
+			'On shared memory computers these data transfers happen automatically through the caching hardware.',
+			'However these transfers take time, along with a cost to data sharing, particularly when shared variables and data structures are modified.'
+		],
+		issues: [
+			{ t: 'True sharing of updated data',					d: 'the same variable is written/read by different cores' },
+			{ t: 'Sharing data between CPUs on NUMA systems',	d: 'different parts of the data may be in different local memories' },
+			{ t: 'Sharing of lock data structures',					d: 'large number of locks acquired or released' },
+			{ t: 'Sharing data between distant cores',				d: 'transferring shared data between threads on distant cores' }
+		],
 		strips: [strips.il],
 		gauges: [[gauge_lw], [gauge_il, gauge_miss]],
-		widgets: [widgets.lockContentions, widgets.threadChains, widgets.memBandwidth, widgets.coreBandwidth, widgets.cacheMisses, widgets.cacheInvalidations, widgets.coreInvalidations]
+		widgets: [widgets.threadChains, widgets.memBandwidth, widgets.cacheMisses, widgets.cacheInvalidations, widgets.coreInvalidations]
 	};
 	var lb = {
 		tag: 'lb', cat: 'lb', label: 'Load balancing', title: 'Load balancing', icon: 'list-ol', enabled: true,
-		description: 'Load balancing is the attempt to divide work evenly among the cores. Dividing the work in this way is usually, but not always, beneficial. There is an overhead in dividing work between parallel cores and it can sometimes be more efficient to not use all the available cores. Nonetheless, a poor load balance is one of the most easily understood performance problems.',
-		issues: ['Undersubscription', 'Alternating sequential/parallel execution', 'Chains of data dependencies, too little parallelism', 'Bad threads to cores ratio'],
-		tooltip: [
+		descriptionDash: [
 			'This category helps about the attempt to divide work evenly among the cores.',	
 			'Dividing the work in this way is usually, but not always, beneficial.',
+		],
+		descriptionDetails: [
+			'Load balancing is the attempt to divide work evenly among the cores.\
+			 Dividing the work in this way is usually, but not always, beneficial.',
+			'There is an overhead in dividing work between parallel cores and it can sometimes be more efficient not to use all the available cores.\
+			 Nonetheless, a poor load balance is one of the most easily understood performance problems.',
+		],
+		issues: [
+			{ t: 'Undersubscription',							d: 'too few threads actively running' },
+			{ t: 'Alternating sequential/parallel execution',	d: 'sequential phases limit performance of the system' },
+			{ t: 'Chains of data dependencies',					d: 'the structure of some parts of the application prevents parallelisation' },
+			{ t: 'Bad threads to cores ratio',					d: 'the work is not appropriately divided for the available cores' }
 		],
 		strips: [strips.q],
 		gauges: [[gauge_uc, gauge_lw], [gauge_m]],
@@ -920,11 +1261,22 @@ app.factory('categories', ['widgets', 'strips', 'facets',  function(widgets, str
 	};
 	var dl = {
 		tag: 'dl', cat: 'dl', label: 'Data locality', title: 'Data locality', icon: 'compass', enabled: true,
-		description: 'This is not a specifically multicore problem, but it is impossible to talk about single or multicore performance without talking about locality. In the early 1980s a typical computer could read a value from main memory in one or two CPU cycles. However, between 1984 and 2004 processing speeds increased by around 50% per year, whereas the time to access DRAM memory fell by only 10%-15% per year. The result is that it now takes hundreds of processor cycles to read a value from main memory. This problem is often called the “memory wall”.',
-		issues: ['Cache Locality', 'TLB Locality', 'DRAM memory pages', 'Page faults'],
-		tooltip: [
+		descriptionDash: [
 			'This category helps about identifying which memory is used: CPU, RAM and disk.',	
 			'More the memory is away from the core, more processor cycles are needed to read a value.',
+		],
+		descriptionDetails: [
+			'This is not a specifically multicore problem, but it is impossible to talk about single or multicore performance without talking about locality.',
+			'Two or more memory accesses have data locality when they touch nearby memory regions. High data locality means caches are very effective, low data locality means caches have very little effect.',
+			'Locality is important because it takes hundreds of processor cycles to access a value in main memory, but only a few cycles to access cache.\
+			 This problem is often called the “memory wall”.',
+		],
+		issues: [
+			{ t: 'Cache Locality',		d: 'data is not present in a reasonably nearby cache' },
+			{ t: '<abbr title="Translation Lookaside Buffer">TLB</abbr> Locality',
+										d: 'data used by the application is seldom in the same virtual page' },
+			{ t: 'DRAM memory pages',	d: 'memory accesses seldom target the same physical DRAM pages' },
+			{ t: 'Page faults',			d: 'not enough physical memory' }
 		],
 		strips: [strips.miss],
 		gauges: [[gauge_miss]],
@@ -932,32 +1284,26 @@ app.factory('categories', ['widgets', 'strips', 'facets',  function(widgets, str
 	};
 	var rs = {
 		tag: 'rs', cat: 'rs', label: 'Resource sharing', title: 'Resource sharing', icon: 'sitemap', enabled: true,
-		description: 'Those who are new to parallel programming often expect linear performance scaling: code running on four cores will be four times faster than on one core. There are many reasons why this is seldom true, but perhaps the most self-explanatory is that those four cores share and must compete for access to other parts of the hardware that have not been replicated four times. For example, all cores will typically share a single connection to main memory.',
-		issues: ['Exceeding memory bandwidth', 'Competition between threads sharing a cache', 'False data sharing'],
-		tooltip: [
+		descriptionDash: [
 			'This category helps about sharing resources between all threads.',	
 			'For example, all cores will typically share a single connection to main memory.',
 		],
+		descriptionDetails: [
+			'Those who are new to parallel programming often expect linear performance scaling: code running on four cores will be four times faster than on one core. There are many reasons why this is seldom true, but perhaps the most self-explanatory is that those four cores share and must compete for access to other parts of the hardware that have not been replicated four times. For example, all cores will typically share a single connection to main memory.',
+		],
+		issues: [
+			{ t: 'Exceeding memory bandwidth',					d: 'the memory bus is saturated with requests' },
+			{ t: 'Competition between threads sharing a cache',	d: 'individual threads might have good data locality, but different threads making a lot of accesses to different parts of memory while sharing a cache could result in poor cache performance' },
+			{ t: 'False data sharing',							d: 'updating data invalidates nearby locations which hold data used by other threads' }
+		],
 		strips: [strips.e],
 		gauges: [[gauge_e, gauge_lw], [gauge_il]],
-		widgets: [widgets.memBandwidth, widgets.coreBandwidth, widgets.lockCounts, widgets.cacheMisses, widgets.cacheInvalidations, widgets.coreInvalidations]
-	};
-	var io = {
-		tag: 'io', cat: 'io', label: 'Input/Output', title: 'Input/Output', icon: 'plug', enabled: false,
-		description: 'Degradation of performance can occur when threads compete for I/O resources such disk, file system or network. I/O contentions are often seen in instances of heavy workloads and causes latency and bottlenecks.',
-		issues: [],
-		tooltip: [
-			'This category helps about the degradation of performance while compete for I/O resources.',	
-			'I/O contentions are often seen in instances of heavy workloads and causes latency and bottlenecks.',
-		],
-		strips: [],
-		gauges: [],
-		widgets: []
+		widgets: [widgets.memBandwidth, widgets.lockCounts, widgets.cacheMisses, widgets.cacheInvalidations, widgets.coreInvalidations]
 	};
 
 	var output = {
-		all: [tg, sy, ds, lb, dl, rs, io],
-		tg: tg, sy: sy, ds: ds, lb: lb, dl: dl, rs: rs, io: io, common: common
+		all: [tg, sy, ds, lb, dl, rs],
+		tg: tg, sy: sy, ds: ds, lb: lb, dl: dl, rs: rs, common: common
 	};
 	
 	return output;

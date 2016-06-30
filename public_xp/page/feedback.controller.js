@@ -9,6 +9,7 @@ xpapp.controller('FeedbackController', ['$controller', '$scope', '$rootScope', '
 	/* Constructor - Data							*/
 	/************************************************/
 	// Taxonomy
+	/*
 	var taxonomy = [
 		{
 			l: 'Task granularity',
@@ -30,11 +31,32 @@ xpapp.controller('FeedbackController', ['$controller', '$scope', '$rootScope', '
 			s: ['Exceeding memory bandwidth', 'Competition between threads sharing a cache', 'False data sharing'],
 		}
 	];
+	*/
 	
+	// Feedback elements
+	var feedbackParts = [
+		{ id: 'q1',	l: 'Tool',				t: 'I thought the tool was easy to use' },
+		{ id: 'q2',	l: 'Visualisations',	t: 'I found the visualizations generally hard to understand.' },
+		{ id: 'q3',	l: 'Categories',		t: 'I think it is helpful to have displays organized around potential problem categories' },
+		{ id: 'q4',	l: 'Problems',			t: 'I had difficulty understanding the problems presented' },
+		{ id: 'q5',	l: 'Usefulness',		t: 'I think tools like this could be useful for working programmers' },
+		{ id: 'q6',	l: 'Tasks',				t: 'I found the tasks (diagnosis of potential problems) difficult to carry out' },
+		{ id: 'q7',	l: 'Usefulness',		t: 'I think tools like this would be useful for people learning about parallel programming' },
+	];
+
+	// Prepare form
+	feedbackParts.forEach(function(part) {
+		if (! $scope.form[part.id]) $scope.form[part.id] = {};
+	}, this);
+	console.log('form', $scope.form);
 	
 	/************************************************/
 	/* Scope - Data									*/
 	/************************************************/
+	// Expose data
+	$scope.allParts = feedbackParts;
+
+	/*
 	// Tabs
 	$scope.tabIndex = 0;
 	$scope.tabs = [
@@ -184,4 +206,5 @@ xpapp.controller('FeedbackController', ['$controller', '$scope', '$rootScope', '
 		{ l: 'Missing features' },
 		{ l: 'Comments' },
 	];
+	*/
 }]);

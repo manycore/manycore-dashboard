@@ -1,0 +1,176 @@
+<!-- Task: problem block -->
+<script type="text/ng-template" id="task-block-issues.html">
+	<div class="well well-sm">
+		<div class="form-group" style="margin: 0px">
+			<label class="control-label" ng-bind-html="uiSection.l"></label>
+			<div class="flex-list">
+				<!-- List of selected issues -->
+				<div ng-repeat="problem in form.problems" ng-include="'task-artifact-issue.html'"></div>
+
+				<!-- Select (add) an issue -->
+				<div class="pure-dropdown">
+					<input type="checkbox" id="dropdown_toggle_0">
+					<label for="dropdown_toggle_0" type="button" class="btn btn-sm btn-primary">
+						<i class="fa fa-plus" style="padding-right: 8px;"></i>Add
+					</label>
+					<div class="pure-dropdown-content" ng-include src="'task-select-issue.html'"></div>
+				</div>
+			</div>
+		</div>
+	</div>
+</script>
+
+<!-- Task: problem artifact -->
+<script type="text/ng-template" id="task-artifact-issue.html">
+	<div class="list-artifact">
+		<div class="list-pill">
+			<span uib-tooltip="{{taxonomy[problem.i].d}}">{{taxonomy[problem.i].t}}</span>
+			<span class="text-info" uib-tooltip="{{confidencesWithNull[problem.c].l}}">{{confidencesWithNull[problem.c].smiley}}</span>
+			<!--
+			<i class="fa {{confidencesWithNull[problem.c].i}}" style="margin-left: 6px" uib-tooltip="{{confidencesWithNull[problem.c].l}}" aria-hidden="true"></i>
+			-->
+		</div>
+		<div class="list-command">
+			<span class="pure-dropdown pure-dropdown-hover pull-right">
+				<a href><i class="fa fa-trash" aria-hidden="true"></i></a>
+				<div class="panel panel-default pure-dropdown-content">
+					<div class="panel-footer">
+						<button type="button" class="btn btn-primary btn-sm" type="button" ng-click="removeProblem()"><i class="fa fa-trash-o" style="padding-right: 8px;"></i>Remove this problem</button>
+					</div>
+				</div>
+			</span>
+			<span class="pure-dropdown pure-dropdown-hover pull-right" style="padding-right: 8px;">
+				<a href><i class="fa fa-pencil" aria-hidden="true"></i></a>
+				<div class="panel panel-default pure-dropdown-content" style="min-width: 300px;">
+					<div class="panel-body">
+						<fieldset>
+							<div class="form-group">
+								<label class="control-label" for="focusedInput">Are you confident about this problem:</label>
+								<div class="btn-group btn-group-flex" role="group">
+									<label ng-repeat="confidence in confidences" class="btn btn-default btn-sm" ng-model="problem.c" uib-btn-radio="$index + 1" uncheckable>{{confidence.l}}</label>
+								</div>
+							</div>
+							<div class="form-group">
+							</div>
+						</fieldset>
+					</div>
+				</div>
+			</span>
+			<a ng-if="! $first" href ng-click="upProblem()" uib-tooltip="Increase rank"><i class="fa fa-plus-circle" aria-hidden="true"></i></a>
+			<span ng-if="! $first || ! $last"  class="badge" uib-tooltip="This problem is, in order of importance, ranked {{$index + 1}}">{{$index + 1}}</span>
+			<a ng-if="! $last" href ng-click="downProblem()" uib-tooltip="Decrease rank"><i class="fa fa-minus-circle" aria-hidden="true"></i></a>
+			&nbsp;
+		</div>
+	</div>
+</script>
+
+<!-- Task: popup: selection -->
+<script type="text/ng-template" id="task-select-issue.html">
+	<div class="panel panel-default" style="min-width: 300px;">
+		<div class="panel-body">
+			<fieldset>
+				<div class="form-group">
+					<ui-select ng-model="tempForm.i" theme="bootstrap">
+						<ui-select-match placeholder="Select a problem">{{$select.selected.t}}</ui-select-match>
+						<ui-select-choices group-by="getCategoryTitle" repeat="issue in listContextProblems | filter: $select.search">
+							<div ng-bind-html="issue.t | highlight: $select.search"></div>
+							<small ng-bind-html="issue.d | highlight: $select.search"></small>
+						</ui-select-choices>
+					</ui-select>
+					<!--
+					<select ng-model="tempForm.i" size="5">
+						<optgroup ng-repeat="category in categories" label="{{category.t}}">
+							<option ng-repeat="issue in category.issues" value="{{issue}}">{{issue.t}}</option>
+						</optgroup>
+					</select>
+					-->
+				</div>
+				<div class="form-group">
+					<label class="control-label" for="focusedInput">How confident are you in this diagnosis?</label>
+					<div class="btn-group btn-group-flex" role="group">
+						<label ng-repeat="confidence in confidences" class="btn btn-default btn-sm" ng-model="tempForm.c" uib-btn-radio="$index + 1" uncheckable>{{confidence.l}}</label>
+					</div>
+				</div>
+				<div class="form-group">
+				</div>
+			</fieldset>
+		</div>
+		<div class="panel-footer">
+			<label for="dropdown_toggle_0" ng-disabled="! tempForm.i" ng-click="addProblem()" type="button" class="btn btn-primary btn-sm">
+				<i class="fa fa-plus" style="padding-right: 8px;"></i>Add this problem
+			</label>
+		</div>
+	</div>
+</script>
+
+<!-- Task: presentation -->
+<section ng-if="tabs[tabIndex].id == 0" class="modal-content">
+	<div class="modal-header">
+		<h1 class="modal-title">Task <small>information</small></h1>
+	</div>
+	
+	<div class="modal-body" ng-switch="taskType">
+		<!-- TASK_STANDALONE_A -->
+		<p ng-switch-when="1">
+			In the following section, you will be able to use the tool to explore the 
+			performance of a single program. Please indicate using the drop-down menu at the 
+			top of the screen why you think the program might be running slower than expected.
+		</p>
+		<!-- TASK_COMPARISON_B -->
+		<p ng-switch-when="2">
+			In the following section, you will be able to use the tool to explore the 
+			performance of two versions of the same program. One of them runs faster than 
+			the other. Please indicate using the drop-down menu at the top of the screen why 
+			you think one of the programs performs better than the other. You can select 
+			more than one possibility and rank them if you are uncertain.
+		</p>
+	</div>
+	
+	<div class="modal-footer">
+		<button type="button" class="btn btn-primary" type="button" ng-click="actionNextTab()">Next<i class="fa fa-hand-o-right" style="padding-left: 8px;"></i></button>
+	</div>
+</section>
+
+<!-- Task: last comments -->
+<section ng-if="tabs[tabIndex].id == 2" class="modal-content">
+	<div class="modal-header">
+		<h1 class="modal-title">Task <small>comments</small></h1>
+	</div>
+	
+	<div class="modal-body">
+		<form class="form-horizontal"><fieldset>
+			<div class="form-group">
+				<label for="inputComments" class="col-lg-2 control-label" style="font-weight: bold;">Comments</label>
+				<div class="col-lg-10" style="font-size: 1.8em;">
+					<textarea name="inputComments" ng-model="form.comments" class="form-control" rows="10" id="textArea"></textarea>
+					<span class="help-block">Please give us any comments you may have on the performance data, the task, the list of problems or the tool.</span>
+				</div>
+			</div>
+		</fieldset></form>
+	</div>
+	
+	<div class="modal-footer">
+		<button ng-if="couldPreviousTab()" type="button" class="btn btn-link" type="button" ng-click="actionPreviousTab()"><i class="fa fa-hand-o-left" style="padding-right: 8px;"></i>Previous ({{tabs[tabIndex - 1].l}})</button>
+		<button type="button" class="btn btn-primary" type="button" ng-click="actionNextTab()">Next<i class="fa fa-hand-o-right" style="padding-left: 8px;"></i></button>
+	</div>
+</section>
+
+<!-- Task: tool -->
+<div ng-if="tabs[tabIndex].id == 1" class="task">
+	<div class="container-fluid">
+		<div class="row">
+			<div class="col-sm-10">
+				<div  class="col-sm-{12 / uiSections.length}" ng-repeat="uiSection in uiSections" ng-include src="'task-block-issues.html'"></div>
+			</div>
+
+			<div class="col-sm-2">
+				<div class="btn-group-vertical" style="width: 100%">
+					<!--<button type="button" class="btn btn-link" type="button" ng-click="actionPreviousTab()"><i class="fa fa-hand-o-left" style="padding-right: 8px;"></i>Intro</button>-->
+					<button ng-disabled="form.problems.length < 1" type="button" class="btn btn-primary" type="button" ng-click="actionNextTab()">Next<i class="fa fa-hand-o-right" style="padding-left: 8px;"></i></button>
+					<!--<button ng-if="form.problems.length < 1" type="button" class="btn btn-link" type="button" ng-click="actionNextTab()">Skip this problem<i class="fa fa-hand-o-right" style="padding-left: 8px;"></i></button>-->
+				</div>
+			</div>
+		</div>
+	</div>
+	<iframe frameborder="0" ng-src="{{path}}" />
+</div>

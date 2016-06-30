@@ -5,7 +5,7 @@ const TIME_NONE = 0;
 const TIME_PROFILE = 10;
 const TIME_CUSTOM = 20;
 
-app.controller('DetailController', ['$scope', '$rootScope', '$window', '$stateParams', '$http', 'selectedProfiles', 'categories', 'widgets', function($scope, $rootScope, $window, $stateParams, $http, selectedProfiles, categories, widgets) {
+app.controller('DetailController', ['$scope', '$rootScope', '$window', '$stateParams', '$http', '$sce', 'selectedProfiles', 'categories', 'widgets', function($scope, $rootScope, $window, $stateParams, $http, $sce, selectedProfiles, categories, widgets) {
 	/************************************************/
 	/* Constructor - Init							*/
 	/************************************************/
@@ -111,6 +111,25 @@ app.controller('DetailController', ['$scope', '$rootScope', '$window', '$statePa
 	/* Functions - Graphical						*/
 	/************************************************/
 	/**
+	 * Generic - get in an array
+	 */
+	$scope.getInArray = function(element) {
+		if (Array.isArray(element))
+			return element;
+		else if (element)
+			return [element];
+		else
+			return [];
+	}
+
+	/**
+	 * Generic - sanitise the HTML code
+	 */
+	$scope.getSanitisedHTML = function(element) {
+		return $sce.trustAsHtml(element);
+	}
+
+	/**
 	 * Waiting - is waiting some data
 	 */
 	function isWaiting() {
@@ -139,6 +158,35 @@ app.controller('DetailController', ['$scope', '$rootScope', '$window', '$statePa
 		}
 	};
 
+	/**
+	 * Help - title
+	 */
+	$scope.helpHTMLTitle = function(clue) {
+		var htmlText = '';
+
+		if (clue.plan) {
+			htmlText += '<span class="clue-title-plan">ㅡ ' + clue.plan + ' ㅡ</span><br/>';
+		}
+
+		if (clue.good) {
+			htmlText += '<i class="fa fa-fw fa-thumbs-up text-info" aria-hidden="true"></i>';
+		}
+
+		if (clue.t) {
+			if (Array.isArray(clue.t)) {
+				htmlText += '<span class="clue-title-name">';
+				htmlText += clue.t.join('</span> or <span class="clue-title-name">');
+				htmlText += '</span>';
+			} else {
+				htmlText += '<span class="clue-title-name">' + clue.t + '</span>';
+			}
+		}
+
+		if (htmlText == '')
+			return $sce.trustAsHtml('&nbsp;');
+		else
+			return $sce.trustAsHtml(htmlText);
+	}
 
 	/************************************************/
 	/* Generator - Graphical						*/
